@@ -1,0 +1,457 @@
+/* ==========================================================================
+   ORCA LINK · DeepSeek 官网版（Edge 扩展）
+   令牌、场景、直角契约与部件样式移植自 @smalltailqwq/dsh-client-ui-skin-orca-link
+   美术资源 CC BY-NC-SA 4.0（一创：上善；二创：Small-tailqwq），禁止商用。
+   ========================================================================== */
+
+/* ---------------------------------------------------------------- 令牌层 */
+html[data-orca-link] {
+  --orca-blue: #4b483f;
+  --orca-cyan: #20c7e8;
+  --orca-ink: #11151b;
+  --orca-graphite: #343b47;
+  --orca-muted: #778399;
+  --orca-line: #2b374824;
+  --orca-surface: #fdfaf4c7;
+  --orca-surface-strong: #fffcf6eb;
+  --orca-reading-surface: #fbf7efa8;
+  --orca-shadow: 0 18px 55px #1b273a1f, 0 2px 5px #1b273a1a;
+  --orca-char-size: 118px;
+  --orca-z-scene: -1;
+  --orca-z-widgets: 2147483000;
+}
+
+html[data-orca-link][data-orca-dark] {
+  --orca-blue: #4d91ff;
+  --orca-cyan: #45d9f4;
+  --orca-ink: #eef4ff;
+  --orca-graphite: #c8d2e2;
+  --orca-muted: #8998af;
+  --orca-line: #b4c7e229;
+  --orca-surface: #0c111ad1;
+  --orca-surface-strong: #0f151ff0;
+  --orca-reading-surface: #0e141eb8;
+  --orca-shadow: 0 18px 55px #0000006b, 0 2px 5px #00000052;
+}
+
+/* ------------------------------------------------------------ 场景背景层 */
+#orca-scene {
+  position: fixed;
+  inset: 0;
+  z-index: var(--orca-z-scene);
+  pointer-events: none;
+  overflow: hidden;
+}
+#orca-scene[data-theme='light'] { background: #f6f1e7; }
+#orca-scene[data-theme='dark'] { background: #090d14; }
+
+.orca-scene-layer {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background-position: 50%;
+  background-repeat: no-repeat;
+  background-size: cover;
+  transform: scale(1.012);
+  transition: opacity 0.64s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.64s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+#orca-scene[data-theme='light'] .orca-scene-layer {
+  filter: saturate(0.9) contrast(0.98);
+}
+#orca-scene[data-theme='dark'] .orca-scene-layer {
+  filter: brightness(0.88) saturate(0.74) contrast(1.05);
+}
+#orca-scene[data-scene='hero'] .orca-scene-layer[data-role='hero'],
+#orca-scene[data-scene='active'] .orca-scene-layer[data-role='active'] {
+  opacity: 0.94;
+  transform: scale(1) translateY(0);
+}
+#orca-scene[data-scene='active'] .orca-scene-layer[data-role='hero'] {
+  transform: scale(1.02) translateY(-8px);
+}
+#orca-scene[data-scene='hero'] .orca-scene-layer[data-role='active'] {
+  transform: scale(1.015) translateY(6px);
+}
+
+/* 与皮肤同款压暗 / 提亮渐晕 */
+#orca-scene[data-theme='light']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(90deg, #f8fafd57 0%, #f8fafd2e 46%, #f8fafd05 72%),
+    linear-gradient(#f8fafd08, #0000 68%, #eff3f829);
+}
+#orca-scene[data-theme='dark']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(90deg, #060a1094 0%, #060a1061 38%, #060a101f 68%, #060a102e 100%),
+    linear-gradient(#05090f14, #070b121f 58%, #05090f57);
+}
+
+/* 让站点自身的底色让位给场景层：JS 会给祖先链打上 data-orca-cleared */
+html[data-orca-link],
+html[data-orca-link] body {
+  background: transparent !important;
+}
+html[data-orca-link] [data-orca-cleared] {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+html[data-orca-link] [data-orca-surface] {
+  background-color: var(--orca-surface-strong) !important;
+  border: 1px solid var(--orca-line) !important;
+  box-shadow: var(--orca-shadow) !important;
+}
+html[data-orca-link] [data-orca-surface-soft] {
+  background-color: var(--orca-surface) !important;
+  border: 1px solid var(--orca-line) !important;
+  box-shadow: var(--orca-shadow) !important;
+}
+
+/* --------------------------------------------------------- 全局直角契约 */
+html[data-orca-square] *,
+html[data-orca-square] *::before,
+html[data-orca-square] *::after {
+  border-radius: 0 !important;
+}
+html[data-orca-square] [class*='avatar'] img,
+html[data-orca-square] img[class*='avatar'] {
+  border-radius: 0 !important;
+}
+html[data-orca-square] ::-webkit-scrollbar-thumb {
+  border-radius: 0 !important;
+}
+html[data-orca-link] * {
+  scrollbar-color: color-mix(in srgb, var(--orca-muted) 45%, transparent) transparent;
+}
+html[data-orca-link] ::selection {
+  background: color-mix(in srgb, var(--orca-cyan) 34%, transparent);
+}
+html[data-orca-link] :focus-visible {
+  outline: 2px solid var(--orca-blue);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------- 部件层 */
+#orca-widgets {
+  position: fixed;
+  left: 18px;
+  bottom: 18px;
+  z-index: var(--orca-z-widgets);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  font: 600 10px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+  color: var(--orca-graphite);
+  user-select: none;
+  -webkit-user-select: none;
+}
+#orca-widgets[data-hidden] { display: none; }
+
+/* 状态角色 */
+#orca-character {
+  position: relative;
+  width: var(--orca-char-size);
+  height: var(--orca-char-size);
+  cursor: grab;
+  touch-action: none;
+  filter: drop-shadow(0 10px 22px #1a263729);
+}
+#orca-character[data-dragging] { cursor: grabbing; }
+html[data-orca-dark] #orca-character { filter: drop-shadow(0 10px 22px #00000073); }
+
+.orca-char-sprite {
+  position: absolute;
+  inset: 0;
+  background-image: url('../assets/status-atlas.webp');
+  background-repeat: no-repeat;
+  background-size: 800% 1000%;
+  background-position: calc(var(--orca-col, 0) / 7 * 100%) calc(var(--orca-row, 0) / 9 * 100%);
+  transform: translate(var(--orca-ax, 0px), var(--orca-ay, 0px));
+  filter: sepia(0.124) saturate(0.945) contrast(1.112) brightness(0.988);
+}
+html[data-orca-dark] .orca-char-sprite {
+  filter: sepia(0.08) saturate(0.78) contrast(0.96) brightness(0.78);
+}
+
+.orca-char-bubble {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 30px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  font: 700 12px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+  color: var(--orca-signal, var(--orca-cyan));
+  background: color-mix(in srgb, var(--orca-signal, var(--orca-cyan)) 8%, #fffcf6f5);
+  border: 1px solid color-mix(in srgb, var(--orca-signal, var(--orca-cyan)) 66%, transparent);
+  opacity: 0;
+  transform: translateY(4px) scale(0.94);
+  transform-origin: 30% 100%;
+  transition: opacity 0.12s, transform 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 8px 18px #1a26371f;
+}
+html[data-orca-dark] .orca-char-bubble {
+  background: color-mix(in srgb, var(--orca-signal, var(--orca-cyan)) 12%, #0c121bf5);
+}
+.orca-char-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 8px;
+  width: 7px;
+  height: 7px;
+  background: inherit;
+  border-left: 1px solid color-mix(in srgb, var(--orca-signal, var(--orca-cyan)) 66%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--orca-signal, var(--orca-cyan)) 66%, transparent);
+  transform: skewY(-45deg);
+}
+#orca-character[data-status='input'],
+#orca-character[data-status='review'] { --orca-signal: #8859d6; }
+#orca-character[data-status='approval'] { --orca-signal: var(--orca-lamp-amber); }
+#orca-character[data-status='fault'] { --orca-signal: var(--orca-lamp-red); }
+#orca-widgets[data-status='input'] { --orca-signal: #8859d6; }
+#orca-widgets[data-status='review'] { --orca-signal: #8859d6; }
+#orca-widgets[data-status='approval'] { --orca-signal: var(--orca-lamp-amber); }
+#orca-widgets[data-status='fault'] { --orca-signal: var(--orca-lamp-red); }
+#orca-widgets[data-status='working'] { --orca-signal: var(--orca-cyan); }
+#orca-character:is([data-status='input'], [data-status='review'], [data-status='approval'], [data-status='fault'])
+  .orca-char-bubble {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+#orca-character[data-status='input'] .orca-char-bubble::before { content: '...'; letter-spacing: 0.08em; }
+#orca-character[data-status='fault'] .orca-char-bubble::before { content: '?'; }
+#orca-character[data-status='approval'] .orca-char-bubble::before { content: '!'; }
+#orca-character[data-status='review'] .orca-char-bubble::before { content: '§'; }
+
+/* 状态标签块（对应皮肤侧栏的 LINK ACTIVE 信号点） */
+.orca-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.orca-signal-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 7px;
+  color: var(--orca-muted);
+  letter-spacing: 0.2em;
+  background: color-mix(in srgb, var(--orca-surface-strong) 88%, transparent);
+  border: 1px solid var(--orca-line);
+  backdrop-filter: blur(6px);
+}
+.orca-signal-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--orca-signal, var(--orca-cyan));
+  box-shadow: 0 0 7px color-mix(in srgb, var(--orca-signal, var(--orca-cyan)) 70%, transparent);
+}
+
+/* 主题字标 */
+.orca-wordmark {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 7px;
+  color: var(--orca-graphite);
+  letter-spacing: 0.3em;
+  background: color-mix(in srgb, var(--orca-surface-strong) 88%, transparent);
+  border: 1px solid var(--orca-line);
+}
+.orca-wordmark::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  background: var(--orca-blue);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 0, 3px 3px, 3px calc(100% - 3px), calc(100% - 3px) calc(100% - 3px), calc(100% - 3px) 3px, 0 0);
+}
+
+/* 移动端 / 窄屏：与皮肤一致地收起大幅装饰 */
+@media (width <= 900px) {
+  #orca-scene,
+  #orca-widgets { display: none !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orca-scene-layer,
+  .orca-char-sprite,
+  .orca-char-bubble,
+}
+
+/* ==========================================================================
+   宿主令牌映射层 —— 逐值照搬原皮肤对 --dsw-* 的覆盖（浅色 61 项 / 暗色 43 项）
+   DSH 与 chat.deepseek.com 共用同一套 DeepSeek 设计令牌命名，所以这一层可以整段搬运：
+   配色会顺着站点自己的变量系统流到气泡、品牌色、边框、标签、侧栏与菜单，无需逐选择器映射。
+   注意 --dsw-alias-bg-base 是半透明值（浅 #faf7f13d / 暗 #080c1338），这正是原皮肤让场景图
+   透出来的机制——和 DSH 上完全一致。
+   ========================================================================== */
+html[data-orca-link] body {
+  --dsw-static-blue-50: #ebe7de !important;
+  --dsw-static-blue-100: #ddd8cc !important;
+  --dsw-static-blue-300: #a89f8e !important;
+  --dsw-static-blue-400: #6a655a !important;
+  --dsw-static-blue-500: #4b483f !important;
+  --dsw-static-blue-600: #3a372f !important;
+  --dsw-static-blue-800: #2e2c26 !important;
+  --dsw-static-blue-950: #1f1d18 !important;
+  --dsw-static-deepseek-50: #ebe7de !important;
+  --dsw-static-deepseek-100: #ddd8cc !important;
+  --dsw-static-deepseek-300: #a89f8e !important;
+  --dsw-static-deepseek-400: #6a655a !important;
+  --dsw-static-deepseek-500: #4b483f !important;
+  --dsw-static-deepseek-600: #3a372f !important;
+  --dsw-static-deepseek-800: #2e2c26 !important;
+  --dsw-static-deepseek-900: #26241f !important;
+  --dsw-alias-bg-base: #faf7f13d !important;
+  --dsw-alias-bg-layer-1: #fffcf69e !important;
+  --dsw-alias-bg-layer-2: #f7f4eebd !important;
+  --dsw-alias-bg-layer-3: #f0ece5d1 !important;
+  --dsw-alias-bg-module-platform: #f7f4eec7 !important;
+  --dsw-alias-bg-overlay: #fdfaf4f5 !important;
+  --dsw-alias-border-l1: #2b37481a !important;
+  --dsw-alias-border-l2: #2b374829 !important;
+  --dsw-alias-border-l3: #2b374840 !important;
+  --dsw-alias-border-l4: #2b37485c !important;
+  --dsw-alias-brand-primary: #4b483f !important;
+  --dsw-alias-brand-primary-invert: #fff !important;
+  --dsw-alias-brand-text: #3a372f !important;
+  --dsw-alias-button-primary-fill: #4b483f !important;
+  --dsw-alias-button-primary-hover: #3a372f !important;
+  --dsw-alias-button-floating-fill: #fffcf6eb !important;
+  --dsw-alias-button-floating-hover: #e8e4da !important;
+  --dsw-alias-button-tool-bar-fill: #fffcf6a3 !important;
+  --dsw-alias-button-tool-bar-hover: #d8d2c6e6 !important;
+  --dsw-alias-interactive-bg-active: color-mix(in srgb, var(--orca-blue) 14%, transparent) !important;
+  --dsw-alias-interactive-bg-hover: color-mix(in srgb, var(--orca-blue) 7%, transparent) !important;
+  --dsw-alias-interactive-bg-hover-solid: #e8e4da !important;
+  --dsw-alias-label-primary: #11151b !important;
+  --dsw-alias-label-secondary: #343b47 !important;
+  --dsw-alias-label-tertiary: #778399 !important;
+  --dsw-alias-label-caption: #8d98aa !important;
+  --dsw-alias-menu-group-header-fill: #fbf7ef !important;
+  --dsw-alias-state-business-primary: #4b483f !important;
+  --dsw-alias-state-business-tertiary: #ddd8cc !important;
+  --dsw-specific-bubble: #e8e4dad6 !important;
+  --dsw-specific-bubble-highlight: #d8d2c6f0 !important;
+  --dsw-specific-input-major: #fdfaf4b8 !important;
+  --dsw-specific-menu: #fdfaf4f5 !important;
+  --dsw-specific-selector: #f6f3ece6 !important;
+  --dsw-specific-sidebar-fill: #faf7f194 !important;
+  --dsw-specific-sidebar-nav-item-active: #d8d2c6d1 !important;
+  --dsw-specific-sidebar-nav-item-active-accent: #a89f8e !important;
+  --dsw-specific-sidebar-nav-item-hover: #e8e4dadb !important;
+  --dsw-input-solid: #fbf7ef !important;
+  --dsw-radius-xs: 0px;
+  --dsw-radius-sm: 0px;
+  --dsw-radius-md: 0px;
+  --dsw-radius-lg: 0px;
+  --dsw-radius-xl: 0px;
+  --dsw-radius-panel: 0px;
+}
+
+html[data-orca-link] body[data-ds-dark-theme],
+html[data-orca-link][data-orca-dark] body {
+  --dsw-alias-bg-base: #080c1338 !important;
+  --dsw-alias-bg-layer-1: #0e141ed6 !important;
+  --dsw-alias-bg-layer-2: #131b28e0 !important;
+  --dsw-alias-bg-layer-3: #1a2332eb !important;
+  --dsw-alias-bg-module-platform: #131b28e0 !important;
+  --dsw-alias-bg-overlay: #0f151ff7 !important;
+  --dsw-alias-border-l1: #b4c7e21a !important;
+  --dsw-alias-border-l2: #b4c7e229 !important;
+  --dsw-alias-border-l3: #b4c7e23d !important;
+  --dsw-alias-border-l4: #b4c7e257 !important;
+  --dsw-alias-brand-primary: #4d91ff !important;
+  --dsw-alias-brand-primary-invert: #07101f !important;
+  --dsw-alias-brand-text: #a9c9ff !important;
+  --dsw-alias-button-primary-fill: var(--orca-blue) !important;
+  --dsw-alias-button-primary-hover: #2e81ff !important;
+  --dsw-alias-button-info-fill: #4d91ff !important;
+  --dsw-alias-button-info-hover: #2e81ff !important;
+  --dsw-static-deepseek-500: #4d91ff !important;
+  --dsw-static-deepseek-200: #a9c9ff !important;
+  --dsw-alias-button-floating-fill: #131b28f2 !important;
+  --dsw-alias-button-floating-hover: #202c40 !important;
+  --dsw-alias-button-tool-bar-fill: #182232e0 !important;
+  --dsw-alias-button-tool-bar-hover: #21314af2 !important;
+  --dsw-alias-interactive-bg-active: #4d91ff33 !important;
+  --dsw-alias-interactive-bg-hover: #4d91ff1c !important;
+  --dsw-alias-interactive-bg-hover-solid: #1d2a3f !important;
+  --dsw-alias-label-primary: #eef4ff !important;
+  --dsw-alias-label-secondary: #c8d2e2 !important;
+  --dsw-alias-label-tertiary: #8998af !important;
+  --dsw-alias-label-caption: #718198 !important;
+  --dsw-alias-menu-group-header-fill: #0f151f !important;
+  --dsw-alias-state-business-primary: #4d91ff !important;
+  --dsw-alias-state-business-tertiary: #183459 !important;
+  --dsw-specific-bubble: #182a42e6 !important;
+  --dsw-specific-bubble-highlight: #1e3858f0 !important;
+  --dsw-specific-input-major: #0e141edb !important;
+  --dsw-specific-menu: #0f151ff7 !important;
+  --dsw-specific-selector: #141d2bf0 !important;
+  --dsw-specific-sidebar-fill: #080c13cc !important;
+  --dsw-specific-sidebar-nav-item-active: #1d3658e0 !important;
+  --dsw-specific-sidebar-nav-item-active-accent: #4d91ff !important;
+  --dsw-specific-sidebar-nav-item-hover: #19263ae6 !important;
+  --dsw-input-solid: #0e141e !important;
+}
+
+/* 站点独有、原皮肤无需覆盖的 markdown 令牌：映射到最接近的 ORCA 面色，保持暖纸/深蓝阅读感 */
+html[data-orca-link] body {
+  --dsw-alias-markdown-code-block: #f4f0e8 !important;
+  --dsw-alias-markdown-code-block-banner: #efeae0 !important;
+  --dsw-alias-markdown-inline-code: #ece7dc !important;
+}
+html[data-orca-link] body[data-ds-dark-theme],
+html[data-orca-link][data-orca-dark] body {
+  --dsw-alias-markdown-code-block: #121a26 !important;
+  --dsw-alias-markdown-code-block-banner: #182232 !important;
+  --dsw-alias-markdown-inline-code: #1a2332 !important;
+}
+
+/* 直角契约的令牌侧（皮肤同时用令牌与定向规则两手） */
+html[data-orca-square] {
+  --dsw-radius-xs: 0px;
+  --dsw-radius-sm: 0px;
+  --dsw-radius-md: 0px;
+  --dsw-radius-lg: 0px;
+  --dsw-radius-xl: 0px;
+  --dsw-radius-panel: 0px;
+}
+
+/* ==========================================================================
+   夜间模式：选中的会话行改为「古典淡金」
+   站点规则是 ._546d736.b64fb9ae { background: var(--dsw-specific-sidebar-nav-item-active-accent) }，
+   而原皮肤在暗色下把该令牌覆盖成 #4d91ff（亮蓝）——这里改回温润的绢本淡金。
+   想换色只改下面三个值即可（gold / gold-ink / gold 的透明度）。
+   ========================================================================== */
+html[data-orca-link] body[data-ds-dark-theme] ._546d736.b64fb9ae {
+  background-color: #d8c08c !important;
+  color: #2a2110 !important;
+}
+/* 选中行右侧的操作按钮是用 mask 上色的，金底上必须转深色才看得见 */
+html[data-orca-link] body[data-ds-dark-theme] ._546d736.b64fb9ae ._254829d {
+  --mask-base-color: 42, 33, 16;
+}
+/* 令牌兜底：站点改版换掉哈希类名时，这一层仍在侧栏容器内生效 */
+html[data-orca-link] body[data-ds-dark-theme] .b8812f16 {
+  --dsw-specific-sidebar-nav-item-active-accent: #d8c08c !important;
+  --dsw-specific-sidebar-nav-item-active: #d8c08c33 !important;
+  --dsw-specific-sidebar-nav-item-hover: #d8c08c1f !important;
+}
+
+/* 顶栏下沿与侧栏分界改用 ORCA 线色（皮肤里靠 --orca-line 统一） */
+html[data-orca-link] .the-header,
+html[data-orca-link] ._2be88ba {
+  border-bottom: 1px solid var(--orca-line) !important;
+}

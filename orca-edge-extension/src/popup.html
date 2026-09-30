@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>ORCA LINK</title>
+    <style>
+      :root {
+        --orca-blue: #4b483f;
+        --orca-cyan: #20c7e8;
+        --orca-ink: #11151b;
+        --orca-muted: #778399;
+        --orca-line: #2b374824;
+        --orca-surface: #fdfaf4;
+      }
+      * { border-radius: 0 !important; box-sizing: border-box; }
+      body {
+        width: 268px;
+        margin: 0;
+        padding: 12px;
+        background: var(--orca-surface);
+        color: var(--orca-ink);
+        font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+      }
+      h1 {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin: 0 0 10px;
+        font-size: 11px;
+        letter-spacing: 0.28em;
+        color: var(--orca-blue);
+      }
+      h1::before {
+        content: '';
+        width: 10px;
+        height: 10px;
+        background: var(--orca-cyan);
+      }
+      label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 6px 8px;
+        border: 1px solid var(--orca-line);
+        margin-bottom: 6px;
+        cursor: pointer;
+      }
+      label:hover { border-color: color-mix(in srgb, var(--orca-cyan) 60%, transparent); }
+      input[type='checkbox'] { width: 14px; height: 14px; accent-color: var(--orca-cyan); }
+      .hint { margin: 10px 0 0; color: var(--orca-muted); font-size: 10px; line-height: 1.6; }
+      .row { display: flex; gap: 6px; margin-top: 10px; }
+      button {
+        flex: 1;
+        padding: 6px;
+        border: 1px solid var(--orca-line);
+        background: transparent;
+        color: var(--orca-ink);
+        font: inherit;
+        cursor: pointer;
+      }
+      button:hover { border-color: var(--orca-cyan); }
+    </style>
+  </head>
+  <body>
+    <h1>ORCA LINK</h1>
+    <label><span>双场景动态背景</span><input type="checkbox" id="scene" /></label>
+    <label><span>状态角色</span><input type="checkbox" id="character" /></label>
+    <label><span>全局直角契约</span><input type="checkbox" id="square" /></label>
+    <label title="正常情况下不需要；站点改版后背景被盖住时打开">
+      <span>背景兜底透明化</span><input type="checkbox" id="reveal" />
+    </label>
+    <div class="row">
+      <button id="reset-pos">重置位置</button>
+      <button id="reload">重载页面</button>
+    </div>
+    <p class="hint">
+      生效范围：chat.deepseek.com。拖拽左下角角色可移动；点击角色气泡可看状态。<br />
+      美术素材 CC BY-NC-SA 4.0（一创：上善 / 二创：Small-tailqwq），禁止商用。
+    </p>
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -45,35 +45,64 @@ html[data-orca-link][data-orca-dark] {
 #orca-scene[data-theme='light'] { background: #f6f1e7; }
 #orca-scene[data-theme='dark'] { background: #090d14; }
 
+/* 基础态：照搬原皮肤逐项对齐
+   亮 --orca-link-light-scene / 暗 --orca-link-dark-scene
+   基础缩放亮 1.008 / 暗 1.01（此前两套都写 1.012，与原作不一致），
+   且非当前角色层带 2px 模糊（`blur(2px)`）—— 这两项就是「材质看着不一样」的来源。 */
 .orca-scene-layer {
   position: absolute;
   inset: 0;
+  z-index: 1;
   opacity: 0;
   background-position: 50%;
   background-repeat: no-repeat;
   background-size: cover;
-  transform: scale(1.012);
+  will-change: opacity, transform, filter;
   transition: opacity 0.64s cubic-bezier(0.22, 1, 0.36, 1),
     transform 0.9s cubic-bezier(0.22, 1, 0.36, 1),
     filter 0.64s cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: opacity, transform;
 }
 #orca-scene[data-theme='light'] .orca-scene-layer {
   filter: saturate(0.9) contrast(0.98);
+  transform: scale(1.008);
 }
 #orca-scene[data-theme='dark'] .orca-scene-layer {
   filter: brightness(0.88) saturate(0.74) contrast(1.05);
+  transform: scale(1.01);
 }
+/* 当前角色层：opacity .94、无模糊、归位 */
 #orca-scene[data-scene='hero'] .orca-scene-layer[data-role='hero'],
 #orca-scene[data-scene='active'] .orca-scene-layer[data-role='active'] {
   opacity: 0.94;
   transform: scale(1) translateY(0);
 }
+#orca-scene[data-theme='light'][data-scene='hero'] .orca-scene-layer[data-role='hero'],
+#orca-scene[data-theme='light'][data-scene='active'] .orca-scene-layer[data-role='active'] {
+  filter: saturate(0.9) contrast(0.98);
+}
+#orca-scene[data-theme='dark'][data-scene='hero'] .orca-scene-layer[data-role='hero'],
+#orca-scene[data-theme='dark'][data-scene='active'] .orca-scene-layer[data-role='active'] {
+  filter: brightness(0.88) saturate(0.74) contrast(1.05);
+}
+/* 非当前角色层：2px 模糊 + 位移，切换时才不会「两张图硬切」 */
 #orca-scene[data-scene='active'] .orca-scene-layer[data-role='hero'] {
+  filter: saturate(0.9) contrast(0.98) blur(2px);
   transform: scale(1.02) translateY(-8px);
 }
 #orca-scene[data-scene='hero'] .orca-scene-layer[data-role='active'] {
   transform: scale(1.015) translateY(6px);
+}
+#orca-scene[data-theme='dark'][data-scene='active'] .orca-scene-layer[data-role='hero'] {
+  filter: brightness(0.88) saturate(0.74) contrast(1.05) blur(2px);
+}
+#orca-scene[data-theme='light'][data-scene='active'] .orca-scene-layer[data-role='hero'] {
+  filter: saturate(0.9) contrast(0.98) blur(2px);
+}
+#orca-scene[data-theme='dark'][data-scene='hero'] .orca-scene-layer[data-role='active'] {
+  filter: brightness(0.88) saturate(0.74) contrast(1.05) blur(2px);
+}
+#orca-scene[data-theme='light'][data-scene='hero'] .orca-scene-layer[data-role='active'] {
+  filter: saturate(0.9) contrast(0.98) blur(2px);
 }
 
 /* 与皮肤同款压暗 / 提亮渐晕 */
@@ -143,22 +172,37 @@ html[data-orca-link] [data-orca-surface-soft] {
 #orca-character[data-dragging] { cursor: grabbing; }
 html[data-orca-dark] #orca-character { filter: drop-shadow(0 10px 22px #00000073); }
 
+/* 角色背板（`#orca-character::before`）**已整体删除**，不是藏起来：
+   那块板子在页面上表现为「一块跟角色分离的独立板子」（用户截图里那块空白方板），
+   它跟场景背景是两码事，所以底板 / 渐晕 / 细纹 / 粒子一并不要，角色直接浮在页面上；
+   原本挂在板子上的那批 theme 令牌也随之撤掉。
+   保留：角色精灵 `.orca-char-sprite`（含原包的金色描边光）、状态气泡、左上角定位。
+   回归断言见 test-plate.mjs / scan-css.mjs（正向断言「背板规则 0 条」）。 */
+
 .orca-char-sprite {
   position: absolute;
   inset: 0;
+  z-index: 1;
   background-image: url('../assets/status-atlas.webp');
   background-repeat: no-repeat;
   background-size: 800% 1000%;
   background-position: calc(var(--orca-col, 0) / 7 * 100%) calc(var(--orca-row, 0) / 9 * 100%);
   transform: translate(var(--orca-ax, 0px), var(--orca-ay, 0px));
-  filter: sepia(0.124) saturate(0.945) contrast(1.112) brightness(0.988);
+  /* 状态切换时的质心补偿位移做一次短过渡，切行不再「咯噔」一下 */
+  transition: transform 0.12s linear;
+  /* 逐项照搬原包 sprite 滤镜：末尾那条 drop-shadow(.45px .65px #4c2f1638)
+     是暖褐色（看着像淡金色）的描边光，原皮肤角色就带这一层。 */
+  filter: sepia(0.124) saturate(0.945) contrast(1.112) brightness(0.988)
+    drop-shadow(0.45px 0.65px #4c2f1638);
 }
 html[data-orca-dark] .orca-char-sprite {
-  filter: sepia(0.08) saturate(0.78) contrast(0.96) brightness(0.78);
+  filter: sepia(0.08) saturate(0.78) contrast(0.96) brightness(0.78)
+    drop-shadow(0.45px 0.65px #00000059);
 }
 
 .orca-char-bubble {
   position: absolute;
+  z-index: 2;
   top: 2px;
   right: 2px;
   width: 30px;
@@ -209,8 +253,15 @@ html[data-orca-dark] .orca-char-bubble {
 #orca-character[data-status='approval'] .orca-char-bubble::before { content: '!'; }
 #orca-character[data-status='review'] .orca-char-bubble::before { content: '§'; }
 
-/* 角色与面板的排布容器 */
+/* 角色与面板的排布容器。角色是**左上角的独立浮层**（对应 DSH 侧栏舞台的
+   「左上角小人」：原作 `top: calc(58px + var(--orca-stage-top)); left: 22px`），
+   所以这一层自己 fixed 到左上角，不再参与左下角面板的 flex 流。
+   拖拽时 inline 的 left/top 会覆盖这里的默认锚点。 */
 .orca-row {
+  position: fixed;
+  top: 58px;
+  left: 22px;
+  z-index: 1;
   display: flex;
   align-items: flex-end;
   gap: 8px;
@@ -402,12 +453,13 @@ html[data-orca-link][data-orca-skin='maid'] .orca-skin-collapse {
   #orca-widgets { display: none !important; }
 }
 
+/* 减少动态效果：角色不再逐帧动，只保留静态姿势 */
 @media (prefers-reduced-motion: reduce) {
-  .orca-scene-layer,
   .orca-char-sprite,
-  .orca-char-bubble,
+  .orca-char-bubble {
+    transition: none !important;
+  }
 }
-
 /* ==========================================================================
    宿主令牌映射层 —— 逐值照搬原皮肤对 --dsw-* 的覆盖（浅色 61 项 / 暗色 43 项）
    DSH 与 chat.deepseek.com 共用同一套 DeepSeek 设计令牌命名，所以这一层可以整段搬运：
@@ -415,6 +467,63 @@ html[data-orca-link][data-orca-skin='maid'] .orca-skin-collapse {
    注意 --dsw-alias-bg-base 是半透明值（浅 #faf7f13d / 暗 #080c1338），这正是原皮肤让场景图
    透出来的机制——和 DSH 上完全一致。
    ========================================================================== */
+/* 台座面：站点「开启新对话」按钮被改成的舞台底。
+   这一套是**照搬 orca-link 皮肤侧栏舞台的光效**（原包
+   `[data-slot=sidebar]>:first-child` 那一套）：
+     底色  #faf7f1a3（原包侧栏舞台底）
+     ::before 层 1  linear-gradient(180deg,#faf7f18c,#faf7f100 76px)  顶部柔光
+     ::before 层 2  linear-gradient(180deg,…接缝…)                     舞台下沿的横向接缝
+     ::before 层 3  repeating-linear-gradient(90deg,#2b374838 0 1px,…) 横向细纹
+     ::after        一条扫过去的亮带（keyframes orcaSeamSweep）
+   原包那是「伪元素层 + 动画」，网页版按钮的 ::before/::after 被站点占着，
+   所以等价物是：底色（--orca-nc-stage-face）+ 同样三层的 background-image
+   （--orca-nc-stage-layers）+ 一条自建元素做的扫描带。
+   亮色 = 暖白纸面 + 冷白扫光，暗色 = 深海墨蓝 + 青蓝扫光；两档都写死色值、
+   不经过任何主题令牌（曾经用过 color-mix(... var(--orca-ink) ...)，而 --orca-ink
+   在暗色下是近白，于是暗色主题里台座变白 —— 「背景怎么是白的」就是这么来的）。 */
+html[data-orca-link]:not([data-orca-skin='maid']) {
+  /* 底色必须是实体色：暗色那档的柔光是半透明提亮层，压在亮色底上压不暗 */
+  --orca-nc-stage-face: #fffcf6f2;
+  --orca-nc-stage-layers:
+    linear-gradient(180deg, #ffffffcf 0%, #ffffff00 44%),
+    linear-gradient(180deg, #fffcf600 0, #fffcf600 60%, #ede6d8d9 100%),
+    repeating-linear-gradient(90deg, #2b374826 0 1px, transparent 1px 7px);
+  --orca-nc-stage-face-border: #2b374829;
+  --orca-nc-stage-face-shadow: 0 18px 55px #1b273a1f, 0 2px 5px #1b273a1a;
+  /* 扫描光带：横向一条冷白光带（原包 orcaSeamSweep 的等价物） */
+  --orca-nc-stage-sweep:
+    linear-gradient(90deg, #20c7e800 0%, #20c7e840 42%, #ffffffb0 50%, #20c7e840 58%, #20c7e800 100%);
+}
+html[data-orca-link]:not([data-orca-skin='maid'])[data-orca-dark] {
+  --orca-nc-stage-face: #0a0e14f2;
+  --orca-nc-stage-layers:
+    linear-gradient(180deg, #8fb6e033 0%, #8fb6e000 46%),
+    linear-gradient(180deg, #0a0e1400 0, #0a0e1400 60%, #05080dc4 100%),
+    repeating-linear-gradient(90deg, #b4c7e21f 0 1px, transparent 1px 7px);
+  --orca-nc-stage-face-border: #b4c7e229;
+  --orca-nc-stage-face-shadow: 0 18px 55px #0000006b, 0 2px 5px #00000052;
+  --orca-nc-stage-sweep:
+    linear-gradient(90deg, #45d9f400 0%, #45d9f43d 42%, #dff6ffa6 50%, #45d9f43d 58%, #45d9f400 100%);
+}
+/* 扫描带自己一枚元素（按钮的伪元素被站点占着）：绝对定位一条窄光带，
+   由 --orca-nc-sweep-x（JS 按台座宽度算）把它从左侧推到右侧。 */
+#orca-nc-sweep,
+.orca-nc-sweep {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--orca-nc-sweep-w, 40%);
+  pointer-events: none;
+  background-image: var(--orca-nc-stage-sweep);
+  transform: translateX(var(--orca-nc-sweep-x, -120%));
+  transition: transform var(--orca-nc-sweep-dur, 1.15s) cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  #orca-nc-sweep,
+  .orca-nc-sweep { display: none; }
+}
+
 html[data-orca-link]:not([data-orca-skin='maid']) body {
   --dsw-static-blue-50: #ebe7de !important;
   --dsw-static-blue-100: #ddd8cc !important;

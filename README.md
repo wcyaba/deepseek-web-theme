@@ -3,7 +3,7 @@
 把 DSH 上的第一名皮肤 **虎鲸链路 / ORCA LINK**（[Small-tailqwq/dsh-deep-whale](https://github.com/Small-tailqwq/dsh-deep-whale)，2316★）搬到 **chat.deepseek.com**。
 素材、配色、令牌、直角契约、状态机参数全部取自原皮肤包，逐项对齐后重新实现为浏览器扩展。
 
-> ⚠️ 这不是那个插件本身。DSH 皮肤是寄生在 DSH 的 Cordis 插件系统 + `data-dsh-*` DOM 契约上的客户端插件（原包 CSS 里 572 处 `[data-dsh-`、289 处 `[data-slot`），chat.deepseek.com 没有插件接口、DOM 也完全不同，所以这里是**同素材同设计的重新实现**。
+>  这不是那个插件本身。DSH 皮肤是寄生在 DSH 的 Cordis 插件系统 + `data-dsh-*` DOM 契约上的客户端插件（原包 CSS 里 572 处 `[data-dsh-`、289 处 `[data-slot`），chat.deepseek.com 没有插件接口、DOM 也完全不同，所以这里是**同素材同设计的重新实现**。
 
 ## 安装（Edge）
 
@@ -13,6 +13,8 @@
 4. 打开或刷新 https://chat.deepseek.com/ —— 左下角出现 ORCA LINK 部件
 
 卸载：在同一页面点「移除」。扩展不改站点文件，随删随净。
+## 效果展示
+<img width="2559" height="1357" alt="a5ce4d5cec99212d77adb616eb5c0ce8" src="https://github.com/user-attachments/assets/d99d7fb8-b6b3-49a4-9f2b-72a9b30aba1e" />
 
 ## 关键发现：两个 DeepSeek 产品共用同一套设计令牌
 
@@ -36,8 +38,6 @@
 | ~~峰谷定价红绿灯~~ | ❌ 已按需移除 | 那是 DeepSeek **API** 的计费时段提示，网页版免费无意义，见下 |
 
 ## 没能照搬的部分
-
-- **皮肤管理器**：原包靠 DSH 的插件花名册与皮肤互斥机制，官网没有宿主接口，改用扩展 popup 的开关。
 - **运行时图标重绘**：原包把 DSH 图标库的 SVG 逐条改写成「只用横线/竖线/45°折线」的直线图形。官网图标体系不同，**未实现**——直角契约覆盖了形状语言，但这是实打实的缺口。
 - **token 账房 / 轨迹面板 / 设置页接管 / composer 折叠把手**：官网没有对应面板。
 

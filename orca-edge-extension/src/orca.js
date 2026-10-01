@@ -126,6 +126,7 @@
     observerTimer: 0,
     href: location.href,
     drag: null,
+    readingHost: null,
   };
 
   /* ------------------------------------------------------- 主题（亮/暗） */
@@ -237,22 +238,37 @@
   }
 
   /* ------------------------- 正文「白玻璃」底（仅女仆套）
-     原皮肤把阅读面铺在**整列**上（`[class*=centerCol]:before` 铺满列容器），但网页版
-     正文列在亮色下几乎就是整页 —— 整列铺白会把侧栏与会话列表一起冲掉
-     （用户截图：「你搞的整块都白了，我只要文字一小部分白了就行」）。
-     所以改成**只给「消息块」各铺一小块**：先量出正文中轴（所有可见文本块水平中位数），
-     打上标记找到「装消息的容器」，再把它的直接子元素（= 一条消息）逐个打标。
-     CSS 侧只认 [data-orca-reading-block]，不再碰列容器本身。 */
+     **逐条照 DSH 原包的做法**：原包是
+       [class*=centerCol]        { position: relative; overflow: hidden }
+       [class*=centerCol]:before { content:""; position:absolute; inset:0;
+                                   background: var(--maid-reading-surface); }
+     即「容器自己定位 + 伪元素 inset:0 铺满」，**不量坐标、不设尺寸、不管滚动**。
+     网页版没有 centerCol，所以 JS 只做一件事：找到「装消息的容器」并打上
+     data-orca-glass-host，其余交给 CSS。
+     （此前我用 JS 量首/末条消息再算 left/top/width/height，还叠了滚动监听、指纹缓存、
+     scrollHeight 上限 —— 四种补丁全是在给错误做法打补丁，出界/模糊/滚底缺底/切聊天
+     间歇失效都是它们的副作用。） */
   function tagReadingSurface() {
     const clear = () => {
-      for (const el of document.querySelectorAll('[data-orca-reading-block]')) {
-        el.removeAttribute('data-orca-reading-block');
-      }
+      const host = document.querySelector('[data-orca-glass-host]');
+      if (host) host.removeAttribute('data-orca-glass-host');
+      state.readingHost = null;
     };
-    if (state.settings.skin !== 'maid') {
+    if (!state.settings.skin) {
       clear();
       return;
     }
+    const textDensity = (el) => {
+      let n = 0;
+      for (const t of el.querySelectorAll('p, li, h1, h2, h3, h4, pre, blockquote')) {
+        if ((t.textContent || '').trim()) n += 1;
+      }
+      return n;
+    };
+    /* 已经标记过、且节点还在文档里 → 直接复用。CSS 是 inset:0，尺寸由容器自己决定，
+       不需要因为滚动/内容变化而重算任何东西 —— 这正是 DSH 那套的好处。 */
+    if (state.readingHost && state.readingHost.isConnected) return;
+
     // 1) 正文中轴：所有可见文本块的中位数（排除本扩展自己的 DOM）
     const nodes = [];
     for (const el of document.querySelectorAll('p, li, h1, h2, h3, h4, pre, blockquote, td')) {
@@ -261,76 +277,98 @@
       if (r.width < 80 || r.height <= 0) continue;
       nodes.push(r.left + r.width / 2);
     }
-    if (nodes.length < 2) return; // 空态首页只有标题，什么都不做
+    /* 空态 / 没有正经正文时清掉标记：
+       注意判据要用**全页的正文块数量**，不能用「祖先链上某一层的 textDensity」——
+       正文列里还挂着输入框（placeholder 也算文本），会让空会话看起来"有内容"，
+       于是一直标记着一个没有正文的容器（表现为切到新会话后残留白板）。 */
+    if (textDensity(document.body) < 4) {
+      clear();
+      return;
+    }
     nodes.sort((a, b) => a - b);
     const midX = nodes[Math.floor(nodes.length / 2)];
 
     // 2) 从正文中轴下方的那个元素往上找「装消息的容器」
     const probe = document.elementFromPoint(midX, window.innerHeight * 0.62);
-    if (!probe) return;
-    const textDensity = (el) => {
-      let n = 0;
-      for (const t of el.querySelectorAll('p, li, h1, h2, h3, h4, pre, blockquote')) {
-        if ((t.textContent || '').trim()) n += 1;
-      }
-      return n;
-    };
-    let list = null;
-    for (let n = probe; n && n !== document.body; n = n.parentElement) {
-      if (n.closest('#orca-widgets, .orca-row, #orca-maids')) continue;
-      if (n.children.length < 2) continue;
-      if (textDensity(n) < 3) continue;
-      const kids = [...n.children];
-      const withText = kids.filter((k) => (k.textContent || '').trim().length > 0);
-      if (withText.length < Math.max(2, Math.ceil(kids.length * 0.5))) continue;
-      if (kids.reduce((s, k) => s + k.getBoundingClientRect().height, 0) < 120) continue;
-      list = n; // 继续往上找，取最外层那个「孩子都是消息」的容器
-    }
-    if (!list) {
+    if (!probe) {
       clear();
       return;
     }
-    // 3) 只给**文字块**打标，粒度停在「段落 / 列表项 / 标题」：
-    //    整条消息铺白会把「复制/下载」那一行、头像与间距一起框进去，整列铺白则会把
-    //    侧栏一起冲掉 —— 用户两版都打回过，要的是「文字一小部分白」。
-    //    站点的类名不保证，所以三套选择器各查一遍取并集（命中哪套算哪套）：
-    //      a) markdown 渲染容器（正文段落都在里面）
-    //      b) 通用的 message/content 容器
-    //      c) 列表项（会话里的 bullet 列表）
-    clear();
-    const blocks = new Set();
-    /* 收「一行/一段」这一层的元素。这里**只排除**自带底色或会撑宽的容器（pre/table），
-       其余（p / li / h2 / 站点的 span·div 行容器）都收 —— 真正防止「出界」的是
-       CSS 侧那条「绝不加 padding / 负 margin」的约束，而不是靠 display 过滤。 */
-    const eligible = (el) => {
-      const tag = el.tagName.toLowerCase();
-      if (tag === 'pre' || tag === 'table') return false;
-      return true;
-    };
-    const add = (el) => {
-      if (!el || !(el.textContent || '').trim()) return;
-      if (el.closest('#orca-widgets, .orca-row, #orca-maids')) return;
-      if (el.querySelector('pre, table')) return; // 含代码块/表格的容器交给它们自己
-      blocks.add(el);
-    };
-    for (const sel of [
-      '[class*="markdown" i]',
-      '[class*="message" i] [class*="content" i]',
-      '[class*="chat" i] [class*="content" i]',
-    ]) {
-      for (const box of list.querySelectorAll(sel)) {
-        for (const kid of box.children) if (eligible(kid)) add(kid);
+    /* 判据：一组兄弟节点是不是「一批消息」——大部分有体量、有正文。 */
+    const isMessageGroup = (kids) => {
+      if (kids.length < 2) return false;
+      let ok = 0;
+      for (const k of kids) {
+        const kr = k.getBoundingClientRect();
+        if (kr.height >= 24 && kr.width >= 80 && (k.textContent || '').trim()) ok += 1;
       }
+      return ok >= Math.ceil(kids.length * 0.6);
+    };
+    /* 沿正文中轴往上，先找到**离得最近的那个「装消息的容器」**。 */
+    let group = null;
+    for (let n = probe; n && n !== document.body; n = n.parentElement) {
+      if (n.closest('#orca-widgets, .orca-row, #orca-maids')) continue;
+      if (textDensity(n) < 3) continue;
+      if (!isMessageGroup([...n.children])) continue;
+      group = n;
+      break;
     }
-    for (const li of list.querySelectorAll('li')) add(li);
-    if (!blocks.size) {
-      // 兜底：退回「一条消息」这一层（同样只用行内/段落级元素）
-      let host = list;
-      while (host.children.length === 1 && textDensity(host.children[0]) >= 3) host = host.children[0];
-      for (const kid of host.children) if (eligible(kid)) add(kid);
+    if (!group) {
+      clear();
+      return;
     }
-    for (const el of blocks) el.setAttribute('data-orca-reading-block', '');
+    /* 再往上锚一层：找到**最近的可滚动祖先**，在它的孩子里取**正文最多的那个** ——
+       那就是「正文列」（站点的消息区）。侧栏作为兄弟不会赢（正文块数量差一个量级）。
+       这比逐层「往上套」稳得多：不依赖任何类名，也不怕消息区外面多包几层 div。 */
+    let list = group;
+    let scroller = null;
+    for (let n = group; n && n !== document.body; n = n.parentElement) {
+      const cs = getComputedStyle(n);
+      if (/(auto|scroll)/.test(cs.overflowY) || /(auto|scroll)/.test(cs.overflow)) { scroller = n; break; }
+    }
+    if (scroller && scroller.children.length) {
+      let best = null;
+      for (const kid of scroller.children) {
+        const d = textDensity(kid);
+        const r = kid.getBoundingClientRect();
+        if (r.width < 120 || r.height < 40) continue;
+        if (!best || d > best.density) best = { el: kid, density: d };
+      }
+      if (best && best.density >= 3) list = best.el;
+    }
+    // 3) 打标记，并量出**正文实际宽度**（只写两个几何变量，其余交给 CSS）。
+    clear();
+    list.setAttribute('data-orca-glass-host', '');
+    state.readingHost = list;
+    sizeReadingGlass(list, nodes);
   }
+
+  /** 量出正文的实际宽度：取容器内所有文本块的并集范围，再加一点内边距。
+   *  只写 `--orca-glass-left` / `--orca-glass-w` 两个数（相对容器的偏移与宽度），
+   *  颜色/圆角/高度全部由 CSS 决定 —— 这样玻璃贴着正文，而不是铺满整列。 */
+  function sizeReadingGlass(list, nodes) {
+    const lr = list.getBoundingClientRect();
+    let minX = Infinity;
+    let maxX = -Infinity;
+    for (const el of list.querySelectorAll('p, li, h1, h2, h3, h4, pre, blockquote, td')) {
+      const r = el.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) continue;
+      if ((el.textContent || '').trim().length < 2) continue;
+      minX = Math.min(minX, r.left);
+      maxX = Math.max(maxX, r.right);
+    }
+    if (!Number.isFinite(minX) || maxX <= minX) {
+      list.style.removeProperty('--orca-glass-left');
+      list.style.removeProperty('--orca-glass-w');
+      return;
+    }
+    const PAD = 22; // 正文两侧留白（玻璃比文字略宽一点）
+    const width = Math.min(maxX - minX + PAD * 2, lr.width);
+    const left = Math.max(0, Math.min((lr.width - width) / 2, minX - lr.left - PAD));
+    list.style.setProperty('--orca-glass-w', Math.round(width) + 'px');
+    list.style.setProperty('--orca-glass-left', Math.round(left) + 'px');
+  }
+
 
   /* ------------------------------------- 背景兜底透明化（站改版遮挡时启用）
      正常情况下由宿主令牌层负责（--dsw-alias-bg-base 本身就是半透明值），
@@ -1199,6 +1237,7 @@
     Object.assign(state, {
       scene: null, widgets: null, character: null, sprite: null,
       maids: null, decor: null, wordmark: null, skinSwitch: null, collapseBtn: null, statusStarted: false, newChatBtn: null, newChatSvg: null, skinHint: null, hintTimer: 0, contentMo: null, themeMo: null, observerTimer: 0, generating: false, generatingAt: 0, workingSince: 0, charRow: null, ncStageDark: null,
+      readingHost: null,
     });
   }
 

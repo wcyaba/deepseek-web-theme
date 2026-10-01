@@ -790,25 +790,40 @@ html[data-orca-link][data-orca-skin='maid'] #orca-scene[data-theme='dark']::afte
    用户要求回到最初那处改动，所以这里恢复原样；站点若再换掉哈希类名，
    由下面那条「只给侧栏文字上色」的窄规则兜住。
    ========================================================================== */
+/* ⚠️ 优先级陷阱（0.3.26 修）：女仆的 **body 令牌块**（`…[data-orca-skin='maid'] body`）
+   里写着 `--dsw-specific-sidebar-fill: #0b1942e0`，而侧栏作用域块选择器
+   `…[data-orca-skin='maid'] .b8812f16` 的**特异性比 body 那条低**：
+       (0,3,1) body  vs  (0,3,0) .b8812f16
+   两边都带 !important，于是**更高特异性的 body 规则赢** —— 侧栏底色一直是旧的半透明蓝
+   （用户截图：「没变深蓝，只有字变成淡金了」）。文字令牌之所以能生效，
+   只是因为 body 块里没有声明它们。
+   所以这个令牌必须放在**同一层（body 作用域）**、并排在 body 块之后。 */
+html[data-orca-link][data-orca-skin='maid'] body {
+  --dsw-specific-sidebar-fill: #1d294fe6 !important;
+}
+html[data-orca-link][data-orca-skin='maid'] body[data-ds-dark-theme] {
+  --dsw-specific-sidebar-fill: #16213fdb !important;
+}
 html[data-orca-link][data-orca-skin='maid'] .b8812f16,
 html[data-orca-link][data-orca-skin='maid'] .dc04ec1d,
 html[data-orca-link][data-orca-skin='maid'] [class*='sidebarCol'] {
-  /* 底色：确保侧栏是海军蓝，而不是被 --dsw-alias-bg-base: transparent 透出宫殿。
-     用过 #0b1942（不透明），但那会让整块侧栏失去原作那层纱感，于是回到原作的
-     #0b1942e0 —— 亮色下侧栏是深蓝底，靠上面的米白字保证可读。 */
-  --dsw-specific-sidebar-fill: #0b1942e0 !important;
-  --dsw-alias-bg-base: #050e2bf5 !important;
-  --dsw-alias-bg-layer-1: #102456f0 !important;
-  --dsw-alias-bg-layer-2: #0b1942f7 !important;
-  --dsw-alias-bg-layer-3: #182850fa !important;
-  --dsw-alias-bg-overlay: #0d193bfa !important;
+  /* 底色：确保侧栏是深蓝，而不是被 --dsw-alias-bg-base: transparent 透出宫殿。
+     用户要求「不要透明的，改成 10% 透明度，深蓝色」→ 取参考图实测值 rgb(29,41,79) = #1d294f，
+     透明度压到 10%（alpha e6 ≈ 90% 不透明）。 */
+  --dsw-specific-sidebar-fill: #1d294fe6 !important;
+  --dsw-alias-bg-base: #1d294fe6 !important;
+  --dsw-alias-bg-layer-1: #22305af0 !important;
+  --dsw-alias-bg-layer-2: #1d294ff7 !important;
+  --dsw-alias-bg-layer-3: #253258fa !important;
+  --dsw-alias-bg-overlay: #1d294ffa !important;
   --dsw-specific-menu: var(--dsw-alias-bg-layer-3) !important;
-  /* 文字：米白／浅蓝灰，压在深蓝底上 */
-  --dsw-alias-label-primary: #f8f3e8 !important;
-  --dsw-alias-label-primary-bluish: #d5dff3 !important;
-  --dsw-alias-label-secondary: #d7def0 !important;
-  --dsw-alias-label-tertiary: #b5c1dd !important;
-  --dsw-alias-label-caption: #96a8ce !important;
+  /* 文字：**淡金**（参考图实测 rgb(216,192,128) = #d8c080），压在深蓝底上 */
+  --maid-sidebar-ink: #d8c080;
+  --dsw-alias-label-primary: #d8c080 !important;
+  --dsw-alias-label-primary-bluish: #dcc89a !important;
+  --dsw-alias-label-secondary: #cdb98b !important;
+  --dsw-alias-label-tertiary: #b3a078 !important;
+  --dsw-alias-label-caption: #9c8b66 !important;
   /* 描边与滚动条：柔金 */
   --dsw-alias-border-l1: #e1cfaa33 !important;
   --dsw-alias-border-l2: #e1cfaa52 !important;
@@ -823,8 +838,8 @@ html[data-orca-link][data-orca-skin='maid'] [class*='sidebarCol'] {
   /* 会话行选中/悬停：深蓝底上用**柔金薄纱**，不用金块压深蓝字
      （orca 的暗金选中令牌 #d8c08c 是给深色主题的，浅色模式下压在这块海军蓝侧栏上
      会显得又亮又糊 —— 这里换成同色系的低透明度纱 + 金色强调条） */
-  --dsw-specific-sidebar-nav-item-active: #d8c08c33 !important;
-  --dsw-specific-sidebar-nav-item-hover: #d8c08c1f !important;
+  --dsw-specific-sidebar-nav-item-active: #d8c08c3d !important;
+  --dsw-specific-sidebar-nav-item-hover: #d8c08c24 !important;
   --dsw-specific-sidebar-nav-item-active-accent: #dbbe7c !important;
 }
 
@@ -837,7 +852,7 @@ html[data-orca-link][data-orca-skin='maid'] [class*='sidebarCol'] {
 html[data-orca-link][data-orca-skin='maid'] [class*='sidebarCol'] :is(span, a, button, li, p),
 html[data-orca-link][data-orca-skin='maid'] .b8812f16 :is(span, a, button, li, p),
 html[data-orca-link][data-orca-skin='maid'] .dc04ec1d :is(span, a, button, li, p) {
-  color: var(--dsw-alias-label-primary, #f8f3e8);
+  color: var(--maid-sidebar-ink, #d8c080);
 }
 
 /* ==========================================================================
@@ -903,41 +918,75 @@ html[data-orca-link][data-orca-skin='maid'] .orca-wordmark::before {
 }
 
 /* ==========================================================================
-   女仆套 · 正文「白玻璃」底（照原皮肤那层 reading surface，但**只铺给消息块**）
-   原包是 `[class*=centerCol]:before{ background: var(--maid-reading-surface);
-   backdrop-filter: blur(16px) saturate(.95); inset: 0 }`，铺满整列。
-   网页版的正文列在亮色下几乎顶到整页 —— 照搬会把侧栏与会话列表一起冲白
-   （用户截图：「你搞的整块都白了，我只要文字一小部分白了就行」）。
-   所以改成：`orca.js` 的 tagReadingSurface() 找出「一条消息」那一层元素并逐个打上
-   `data-orca-reading-block`，CSS 只给这些块铺一小块半透明玻璃。
-   颜色按原皮肤语义给两档（原包 body 级只定义了 --maid-reading-surface，
-   这里是同一支令牌，取它浅/深那套值的语义）。 */
+   女仆套 · 正文「白玻璃」底 —— **逐条照 DSH 原包的做法**
+   原包（`@smalltailqwq/dsh-client-ui-skin-maid-atelier`）：
+     [class*=centerCol]        { position: relative; overflow: hidden }
+     [class*=centerCol]:before { content:""; position:absolute; inset:0;
+                                 background: var(--maid-reading-surface);
+                                 backdrop-filter: blur(16px) saturate(.95) }
+   即：**容器自己定位 + 伪元素 inset:0 铺满**，不量坐标、不设尺寸、不管滚动。
+
+   网页版没有 centerCol，所以 JS 只做一件事：找到「装消息的容器」并打上
+   `data-orca-glass-host`，其余交给这两条 CSS —— 面板尺寸＝容器尺寸，滚到哪都不会错位。
+   （此前我用 JS 量首/末条消息再算 left/top/width/height，还叠了滚动监听、指纹缓存、
+   scrollHeight 上限，四种补丁全是在给错误做法打补丁 —— 出界、模糊、滚底缺底、切换聊天
+   间歇失效都是它们的副作用。）
+
+   两条硬约束（都是被用户截图打回来的）：
+     ① 不给站点元素加 padding / margin（撑宽被裁 → 文字出界、重叠）；
+     ② 不用 backdrop-filter（背后模糊 + 嵌套叠加 → 文字糊掉）。 */
+html[data-orca-link] {
+  /* 两套皮肤共用的「正文玻璃」几何与观感开关 */
+  --orca-glass-radius: 14px;
+}
 html[data-orca-link][data-orca-skin='maid'] {
-  /* 略透：能看见一点宫殿，但不影响读字（原包 #f9fbffc7 更透，这里折中到 ~0.9） */
-  --maid-reading-surface: #f9fbffe8;
+  --maid-reading-surface: #f9fbffe8; /* 略透：能看见一点宫殿，不影响读字 */
+  --maid-reading-frame: #475b912e;
 }
 html[data-orca-link][data-orca-skin='maid'][data-orca-dark] {
   --maid-reading-surface: #0a122ac9;
+  --maid-reading-frame: #e1cfaa26;
+}
+/* 虎鲸链路 · 正文淡金玻璃。
+   颜色取自用户给的参考图实测值 rgb(245,240,230) = #f5f0e6（暖偏移 R−B = 15，淡金而非纯白）。
+   令牌名用 --orca-glass-*，**不能**复用 --orca-reading-surface：
+   那个名字在第 8 行的根令牌块里已经存在（虎鲸自己的阅读面），会被这里整个覆盖掉。 */
+html[data-orca-link]:not([data-orca-skin='maid']) {
+  --orca-glass-surface: #faf3e8e8;
+  --orca-glass-frame: #b9975a33;
+}
+html[data-orca-link]:not([data-orca-skin='maid'])[data-orca-dark] {
+  --orca-glass-surface: #0e141ecc;
+  --orca-glass-frame: #c8b18426;
 }
 
-/* 只认 JS 打的标记：**文字块**各铺一小块略透玻璃。
-   粒度刻意停在「段落 / 列表项 / 标题」这一层（整条消息会把复制/下载那行框进去，
-   整列则会把侧栏一起冲白，两版都被用户打回过）。
-
-   ⚠️ 两条硬约束（都是被截图打回来的）：
-   1) **不许写 padding / margin** —— 0.3.14 写的 `padding: 6px 10px; margin: -6px -10px`
-      让块比容器宽 20px，站点容器一裁剪，右边文字被吃掉、左边序号被挤出去。
-      所以尺寸完全交回站点排版。
-   2) **不许写 backdrop-filter** —— 它在块背后做模糊，而块里还会有嵌套的玻璃元素
-      （列表项里再套块），叠加后连文字一起糊掉（用户截图：「存在一些文字莫名其妙
-      模糊化了」）。用一层够实的半透明底就足够达到「略透的玻璃感」。 */
-html[data-orca-link][data-orca-skin='maid'] [data-orca-reading-block] {
-  background-color: var(--maid-reading-surface) !important;
-  border-radius: 8px;
+/* 两套皮肤都用同一套几何：`::before` 铺在正文列上，宽度由 JS 量出的正文范围决定。
+   注意**不加 `overflow: hidden`**：那会裁剪站点自己的溢出内容（下拉、浮层、代码块）。
+   `position: relative` 只影响本站自己绝对定位的子元素，风险最低。 */
+html[data-orca-link] [data-orca-glass-host] {
+  position: relative;
 }
-/* 块里的代码/引用保持自己那层底，别再叠一层玻璃（会发灰） */
-html[data-orca-link][data-orca-skin='maid'] [data-orca-reading-block] :is(pre, code, blockquote) {
-  background-color: transparent !important;
+html[data-orca-link] [data-orca-glass-host]:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0; /* 高度铺满容器 */
+  /* 宽度收到正文实际宽度并居中：JS 只写「左偏移 + 宽度」两个数，
+     尺寸/颜色/圆角仍由 CSS 决定。
+     （不能用 inset:0 + max-width：左右偏移会被优先解算，居中不可靠。
+       铺满整列的话在宽屏上明显比正文宽出一大截 —— 用户「范围太大了，往中间缩小点」。） */
+  left: var(--orca-glass-left, 0px);
+  width: var(--orca-glass-w, 100%);
+  z-index: 0;
+  pointer-events: none;
+  background-color: var(--maid-reading-surface, var(--orca-glass-surface));
+  border: 1px solid var(--maid-reading-frame, var(--orca-glass-frame));
+  border-radius: var(--orca-glass-radius, 14px);
+}
+/* 容器里的内容压在玻璃之上 */
+html[data-orca-link] [data-orca-glass-host] > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* ==========================================================================

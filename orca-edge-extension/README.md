@@ -70,6 +70,347 @@
 - **运行时图标重绘**：原包把 DSH 图标库的 SVG 逐条改写成「只用横线/竖线/45°折线」的直线图形。官网图标体系不同，**未实现**——直角契约覆盖了形状语言，但这是实打实的缺口。
 - **token 账房 / 轨迹面板 / 设置页接管 / composer 折叠把手**：官网没有对应面板。
 
+## 本版本调整（0.3.26）
+
+**修「侧栏没变深蓝，只有字变淡金了」——根因是 CSS 特异性，不是令牌名**（用户一眼看出「有别的代码在覆盖」）。
+
+0.3.25 我把 `--dsw-specific-sidebar-fill: #1d294fe6` 写在侧栏作用域块里，但**女仆的 body 令牌块**
+（`html[data-orca-link][data-orca-skin='maid'] body`，第 678 行）里也声明了这个令牌：
+
+| 声明处 | 选择器特异性 |
+|---|---|
+| 女仆 body 令牌块（写 `#0b1942e0`，**早**） | (0,3,1) |
+| 我的侧栏作用域块（写 `#1d294fe6`，**晚**） | (0,3,0) ← 输了 |
+
+两边都带 `!important`，特异性低的一方**在后面也赢不了** → 底色一直是旧的半透明蓝。
+文字令牌之所以生效，纯属巧合：body 块里**没有**声明它们。
+
+修法：把这个令牌放到**同一层（body 作用域）**并排在 body 块之后；
+
+```css
+html[data-orca-link][data-orca-skin='maid'] body { --dsw-specific-sidebar-fill: #1d294fe6 !important; }
+html[data-orca-link][data-orca-skin='maid'] body[data-ds-dark-theme] { --dsw-specific-sidebar-fill: #16213fdb !important; }
+```
+
+并加了两条断言钉住「必须在 body 作用域声明」+「暗色也必须有一档」——
+以后谁把它挪回侧栏作用域块，测试会直接报出来。
+
+> 说明：这个令牌在**抽取出的站点/DHS CSS 里没有任何消费点**（`grep dsw-specific-sidebar-fill`
+> 只命中原皮肤自己的两处定义），所以它是站点内部消费的令牌、我无法在本地仿真页里复现渲染效果。
+> 本次是**按选择器特异性的确定性推导**修的，没有截图实证 —— 如果刷新后仍是半透明，
+> 请把侧栏那个元素的 DevTools 计算样式截图给我，我按实际生效的那条规则改。
+
+## 本版本调整（0.3.25）
+
+**深海女仆工坊 · 侧栏改成「深蓝 + 10% 透明度 + 淡金字」**（用户要求）。
+
+颜色不是眼估的 —— 把用户给的侧栏截图解码取样：
+
+```
+侧栏底（分组头/行间空白） rgb(29,41,79)   = #1d294f   → 取为底色，alpha e6（90% 不透明 = 10% 透明度）
+文字（出现最多的暖色）     rgb(216,192,128) = #d8c080  → 取为文字色
+```
+
+改动（全部在侧栏作用域令牌里，仍然**不碰品牌元素、不给容器刷背景**）：
+
+| 令牌 | 原值 | 新值 |
+|---|---|---|
+| `--dsw-specific-sidebar-fill` / `--dsw-alias-bg-base` | `#0b1942e0` / `#050e2bf5` | **`#1d294fe6`** |
+| `bg-layer-1/2/3`、`bg-overlay` | 偏亮的蓝 | 同族深蓝（`#22305af0` …） |
+| `--dsw-alias-label-primary` 等 5 项文字令牌 | 米白／浅蓝灰 | **淡金**（`#d8c080` / `#dcc89a` / `#cdb98b` / `#b3a078` / `#9c8b66`） |
+| 会话行选中／悬停薄纱 | `#d8c08c33` / `#d8c08c1f` | `#d8c08c3d` / `#d8c08c24`（淡金字下要略实才看得出选中） |
+
+兜底那条「只给侧栏文字上色」的窄规则改用独立令牌 `--maid-sidebar-ink`（`#d8c080`），
+不再挂 `--dsw-alias-label-primary`，避免以后改令牌时兜底颜色跟着漂。
+
+> ⚠️ 测试里有一条「侧栏作用域令牌必须**逐值照搬原皮肤**」的断言 —— 这次是用户要求的
+> **主动偏离**，所以在测试里建了一张 `INTENTIONAL_DIVERGENCE` 登记表（13 项），
+> **逐项显式登记**而不是偷偷放宽断言：以后谁再改这些值，测试会指名报出是哪一项。
+
+## 本版本调整（0.3.24）
+
+**虎鲸链路（ORCA LINK）也铺同一块正文玻璃，日间用淡金色**（用户指定）。
+
+1. 几何规则从「只给 maid」改成**两套皮肤共用**：宿主 `position:relative`、`::before` 铺
+   `top/bottom:0` + `--orca-glass-left/--orca-glass-w`；颜色由各皮肤自己的令牌给。
+2. 新增虎鲸令牌 `--orca-glass-surface` / `--orca-glass-frame`，日间 `#faf3e8e8`（实测渲染
+   `rgba(250,243,232,.91)`）。
+   颜色不是我拍的 —— 把用户给的参考图解码取样，实测 `rgb(245,240,230)`（暖偏移 R−B=15），
+   按同族取值。
+3. 顺手去掉宿主容器上的 `overflow: hidden`：那会**裁剪站点自己的浮层/下拉/代码块**，
+   属于不必要的副作用（宽度已经由 JS 量出的正文范围控制，不需要靠裁剪兜底）。
+
+> ⚠️ 踩到一个撞名坑：根令牌块（第 8 行 `html[data-orca-link]`）里**本来就有**
+> `--orca-reading-surface`（虎鲸自己的阅读面 `#fbf7efa8`），我第一版复用了这个名字，
+> 等于把它覆盖掉了。现在玻璃令牌改名 `--orca-glass-*`，并加了一条断言钉住
+> 「根令牌块里的 `--orca-reading-surface` 必须仍是原值」。
+> （测试辅助函数也一并修了：同名选择器会出现多次，必须用「选择器 + 含目标声明」一起定位。）
+
+实测（本地 HTTP + 无头 Edge + CDP 注入扩展源码，皮肤 = orca）：
+
+```
+::before 计算值：background rgba(250,243,232,0.91)   width 824px   left 129px
+滚到底：uncoveredBelow = 0
+单条大消息：hostCoversMessage = true     切聊天：重新标记新容器
+```
+
+## 本版本调整（0.3.23）
+
+**把玻璃范围收到正文宽度并居中**（用户：范围太大了，往中间缩小点）。
+
+0.3.21 那版是「铺满整个正文列」，宽屏上比正文宽出一大截。现在只量**正文实际占用的横向范围**
+（容器内所有文本块的并集），两侧各留 22px，再在列里居中：
+
+```css
+[data-orca-glass-host]:before { top:0; bottom:0;
+                                left: var(--orca-glass-left);
+                                width: var(--orca-glass-w); /* JS 只写这两个数 */ }
+```
+
+> 试过用 `inset:0 + max-width + margin:auto` 居中，但左右偏移会被优先解算，
+> 居中不可靠 —— 所以还是写「左偏移 + 宽度」两个具体数字，其余（高度/颜色/圆角/边框）仍全在 CSS。
+
+实测（仿真：列宽 1112px、正文 780px）：
+
+```
+--orca-glass-w = 824px   --orca-glass-left = 129px   ::before 计算值一致
+滚到底：uncoveredBelow = 0
+单条大消息：hostCoversMessage = true（盖住整条）
+切聊天：重新标记新容器      空会话：marked=false
+```
+
+## 本版本调整（0.3.22）
+
+**修「怎么只有这块」**（用户截图：白玻璃只盖住了最后一条消息）。
+
+原因在挑容器：在「**单条大消息**」的页面上，消息的 markdown 容器自身也满足我原来的判据
+（有正文、有高度），而我的循环里 `continue` 只跳过、**已经赋值的候选不会被清掉**，
+于是标记停在了那一层 —— 白玻璃就只盖住一条。我搭建的仿真页当时每条消息很短、
+markdown 层不达标，所以一直没复现出来；这次把仿真页改成「每个文本块都像站点那样」，
+**立刻复现**（`hostCls: "_md"`）。
+
+现在的挑法（两步，都不依赖类名）：
+
+1. 沿正文中轴往上，找**最近的「装消息的容器」**：孩子是一批消息（≥2 个有体量有正文）；
+2. 再锚定**最近的可滚动祖先**，在它的孩子里取**正文最多的那个** —— 那就是正文列。
+   侧栏作为兄弟不可能赢（正文块数量差一个量级），也不会因为外面多包几层 div 而跑偏。
+
+空态判据同时修了一处：原来用「祖先链上某层的正文密度」，而正文列里**挂着输入框**
+（placeholder 也算文本），会让空会话看着"有内容" → 残留白板。改成用**全页正文块数量**。
+
+### 实测（本地 HTTP + 无头 Edge + CDP 注入扩展源码）
+
+```
+多消息：   host = 正文列 (x=288 w=1112，不含侧栏)  ::before bg=rgba(249,251,255,.91)
+滚到底：   scrollTop=1039  hostBottom=1086  scrollerBottom=1086  uncoveredBelow=0
+单条大消息：hostCoversMessage=true（白玻璃盖住整条，而不是一小块）
+切聊天：   marked=true → 新容器 id=msgs，旧标记已清理
+切到空会话：marked=false
+```
+
+> ⚠️ 这一轮又学一遍：**测试用例必须覆盖"边界形态"**（这里是「只有一条大消息」），
+> 否则仿真页全绿、真实页面照样错。以后改挑容器这类启发式，必须同时跑
+> 「多消息 / 单条大消息 / 空会话 / 切换会话」四种形态。
+
+## 本版本调整（0.3.21）
+
+**回到 DSH 原包的做法：纯 CSS `inset: 0`，JS 只负责找容器。**
+
+用户一句话点破了问题：「**你自己试过吗，你有没有按照 dsh 插件的那个逻辑来**」。答案是：
+先前 **没有**。原包是
+
+```css
+[class*=centerCol]        { position: relative; overflow: hidden }
+[class*=centerCol]:before { content:""; position:absolute; inset:0;
+                            background: var(--maid-reading-surface) }
+```
+
+**尺寸完全由容器决定，不量坐标、不设尺寸、不管滚动**。而我从 0.3.13 起做的是
+「JS 量首/末条消息 → 算 left/top/width/height → 挂自建面板」，之后为了圆这个错，
+一连加了四种补丁：滚动监听、rAF 节流、内容指纹缓存、`scrollHeight` 上限。
+出界、模糊、滚底缺底、切聊天间歇失效，**全是这四种补丁的副作用**。
+
+现在（0.3.21）：
+
+| | 0.3.13–0.3.20 | 0.3.21 |
+|---|---|---|
+| 容器 | JS 打标记 | 同（只是找容器） |
+| 玻璃层 | JS 建 `#orca-reading-panel` 并写 inline 尺寸 | **`[data-orca-glass-host]::before { inset: 0 }`** |
+| 尺寸来源 | JS 量首/末条消息 | **容器自身** |
+| 额外机制 | 滚动监听 + rAF + 指纹缓存 + scrollHeight 上限 | **全部删除**（JS 里 0 处 left/top/width/height 写入） |
+| 容器样式 | `position: relative` | `position: relative + overflow: hidden`（同原包） |
+
+`tagReadingSurface()` 现在只做三件事：找容器、打 `data-orca-glass-host`、在空会话/换皮肤时摘掉标记；
+已标记且节点还在就直接复用（切换会话时站点会换掉消息区，标记随之失效 → 自动重新找）。
+
+### 实测（本地 HTTP + 无头 Edge + CDP 注入扩展源码）
+
+```
+mid:     marked=true  hostCls=_list  pos=relative  overflow=hidden
+         before-bg=rgba(249,251,255,0.91)  host.h=1867  uncoveredBelow=0
+bottom:  scrollTop=781  hostBottom=1086  scrollerBottom=1086  uncoveredBelow=0
+切换聊天（换掉整个消息区）：marked=true  id=list2  旧标记已失效清理
+切到空会话：marked=false
+```
+
+`test-tokens.mjs` 的断言整组换成了新契约，其中几条是**反向断言**，防止我再退回老路：
+`JS 不再自建面板元素`、`JS 不再写 left/top/width/height`、`不再需要滚动监听/指纹缓存/scrollHeight 上限`。
+
+> ⚠️ 这段经历的教训：**当一个实现需要靠第三、第四个补丁才能正确时，说明做法从一开始就错了**，
+> 应该回到参照物（这里是原包的几行 CSS）重新对齐，而不是继续加补丁。
+
+## 本版本调整（0.3.20）
+
+**修「有时好有时坏，尤其经常切换聊天的时候」**。这一轮把剩下两个同源缺陷一起拔掉了：
+
+1. **短路判据太弱**：我用「宿主存在 + `scrollHeight` 未变 + `top` 未变」当作"几何没变"的证据。
+   但**切换会话时消息列表节点会被整个换掉**，而新列表的这两个数字很可能与旧值相同
+   （列表位置固定、消息都短）→ 短路生效、几何却是旧的 → 白板盖在错的地方。
+   现在改成**指纹**：宿主孩子名单 + 每个孩子的相对位置/尺寸 + 滚动祖先的滚动量
+   （指纹里**排除面板自己**，否则又是自我影响）。
+2. **空会话没清理**：切到还没有内容的新会话时，正文块数量不足会让函数提前 `return`，
+   **旧面板留在上一个会话的位置上**（实测 `panelBottom=-44`，整块跑到视口上方）。
+   现在这条分支改成 `clear()` 后再返回；等新会话出内容（观察器每 500ms 会再调）面板会重建。
+
+加上 0.3.19 修掉的两个（面板被移掉后不重建、`scrollHeight` 正反馈），切换聊天相关的路径
+实测结论：
+
+```
+切换聊天（换掉整个消息列表、滚动尺寸故意保持一致）：
+  panelRebuilt = true     宽度覆盖 = true
+切到空会话：  panel = false   host = false      ← 旧面板被清干净
+滚到底：      uncoveredBelow = 0
+面板被移除后滚动：重建 = true，scrollHeight 仍 2274（不再被自己撑大）
+```
+
+> ⚠️ 这四轮都在同一条链上翻车，教训归拢成两条：
+> ① **任何"没变就跳过"的短路，判据必须是内容指纹**，不能是两三个聚合数字；
+> ② **凡是会被自己影响的量（scrollHeight / 祖先几何）都不能作为计算依据**，
+>    也不能留在缓存判据里。
+
+## 本版本调整（0.3.19）
+
+**修「翻到底部时整块白板消失」**（用户截图：滚到底后文字背后的白底整块没了）。
+
+真因有两层，都是我上一轮为了"治缺口"自己引进来的：
+
+1. **提前返回条件不严 → 面板被移掉后永不重建**。我加的「几何没变就直接返回」只检查了
+   `宿主存在 + scrollHeight 未变`，但**面板自己可能已被移掉**（站点重渲染、或上一次
+   `clear()` 先摘了它）。此时条件成立 → 直接 return → 面板再也建不回来，表现就是
+   「滚到底白板整块消失」。现在必须**同时**确认 `:scope > #orca-reading-panel` 还在。
+2. **正反馈**：我用滚动容器的 `scrollHeight` 兜底，而面板是绝对定位的**定位后代**，
+   会把祖先滚动容器的 `scrollHeight` 撑大 → 「面板越长 → 可视底越大 → 面板又更长」。
+   实测 `scrollHeight` 从 2274 涨到 3418（`contain: layout` 也挡不住）。
+   现在改为：**量之前先把自己的高度归零**，记下"不含面板"的原始 `scrollHeight` 作为上限，
+   高度取 `min(可视底, 原始内容底)`；面板再加 `contain: layout` 减少影响。
+
+实测（本地 HTTP + 无头 Edge + CDP 注入扩展）：
+
+```
+mid:      scrollHeight=2274  panelBottom=2274  uncoveredBelow=0
+bottom:   scrollTop=1188    panelBottom=1086  uncoveredBelow=0
+移除面板后再滚动：面板重建 = true
+rebuilt:  scrollHeight=2274（不再被面板撑大，修复前是 3418）  uncoveredBelow=0
+```
+
+> ⚠️ 教训：给「会随内容变化重算」的自建元素做几何时，**永远不要读会被自己影响的尺寸**
+> （`scrollHeight` / `getBoundingClientRect` 的祖先聚合量），否则就是正反馈。
+> 另外任何"几何没变就跳过"的短路，都必须把"我的产物还在不在"纳入条件。
+
+## 本版本调整（0.3.18）
+
+**修「翻到最底下有一部分没白底，往上翻一点又有了」**（用户截图反馈）。
+
+根因：面板高度当时是 `末条消息底 − 首条消息顶`，而**流式回答是边写边长**的 ——
+高度是某一刻算出来的，之后新消息/长出来的内容落在面板下边界之外；滚动到底部那一段
+就没有底，触发一次重扫（往上翻、resize）才补上。
+
+两条修法：
+
+1. **高度用可滚动内容兜底**：`contentBottom = max(末条消息底, 容器顶 + scrollHeight)`，
+   面板一直铺到内容底，而不是只到「当时看到的最后一条消息」。
+2. **滚动容器挂滚动监听**（rAF 节流，几何没变就直接返回，避免每帧重扫文本块）：
+   内容一变长就重算几何，流式回答增长时面板会跟着变长。
+
+### 实测验证（本轮自己跑通的）
+
+这次没有靠截图猜 —— 起了个本地 HTTP 服务 + 无头 Edge，用 CDP 把扩展的 CSS/JS 注进仿真页
+（MV3 在 `file://` 下不注入，所以走 http），滚到底部量覆盖：
+
+```
+mid:    scrollHeight=2274  panelBottom=2274  uncoveredBelow=0   ← 面板铺满内容底
+bottom: scrollTop=1188     panelBottom=1086  uncoveredBelow=0   ← 滚到底部，零未覆盖
+```
+
+脚本留在 `D:\AI\orca-plate-check\verify-scroll.mjs`，可随时重跑（它会自己起服务、起浏览器、
+量几何、落截图）。
+
+> ⚠️ 本轮我的两个操作失误，都记在这里：
+> ① 用 PowerShell `Set-Content` 打补丁改 `manifest.json` 时**没指定 UTF-8**，把中文写成了乱码
+>    （已用 write 工具按 UTF-8 重建，JSON 校验通过）；
+> ② 自建静态服务器的越权校验写成 `file.startsWith(ROOT)`，而 Windows 上 `path.join` 是反斜杠，
+>    于是**每个请求都判成 404**（已改成归一化后比较）。以后不再用 PowerShell 改带中文的文件。
+
+## 本版本调整（0.3.17）
+
+**正文白底改成「一整块玻璃面板」，并且第一次做到「交付前自己看见」**。
+
+### 之前为什么做不像 DSH
+
+我把 DSH 的布局包解出来（`@deepseek-ai/dsh-client-ui-layout/lib/client.js`）确认了原包的对应物：
+
+```css
+/* DSH 的中列容器是 .pI_x6G_centerCol —— 皮肤里那句 [class*=centerCol] 命中的就是它 */
+[class*=centerCol] { position: relative; overflow: hidden; }
+[class*=centerCol]:before {
+  content: ""; position: absolute; inset: 0; z-index: 1;
+  background: var(--maid-reading-surface);   /* 亮 #f9fbffc7 / 暗 #0a122ac7 */
+  backdrop-filter: blur(16px) saturate(.95);
+}
+```
+
+**它是一整块「铺满中列」的面板**。而网页版没有这个容器（`centerCol` 只存在于 DSH 自己的布局包里），
+我先前的做法是退回「给段落贴小片」—— 从那一刻起就不可能像，还引出了出界、模糊、药丸感三个新问题。
+
+### 现在的做法
+
+`tagReadingSurface()` 量出**消息列表**，在它内部挂一枚 `#orca-reading-panel`，按首/末条消息算出边界，
+铺一整块半透明玻璃（圆角 14px，`--maid-reading-surface`，**不用** `backdrop-filter`）。
+等价于原包那层 `inset:0`，但落点是我们量出来的正文范围，不会连侧栏一起铺。
+
+顺带修掉一个**只有实测才能发现的 bug**：绝对定位元素的 `left/top` 是**相对包含块的偏移**，
+我第一版直接写成页面坐标，面板被整体右推了「列表左边界」那么多（实测 `x=1060`，应为 `521`）。
+
+### 这次是怎么验的
+
+上一轮浏览器权限被拒（Chrome 里也没装这个扩展），这一轮改用 **Edge + 无头 + 加载本扩展**，
+在仿真页面上让**真的扩展**跑起来，用 CDP 量几何并截图自查：
+
+```pwsh
+& "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" `
+  --headless=new --no-sandbox --disable-gpu --disable-sync `
+  --user-data-dir="$env:TEMP\orca-e2e" --remote-debugging-port=9225 `
+  --window-size=1600,900 `
+  --load-extension=D:\AI\orca-edge-extension `
+  --disable-extensions-except=D:\AI\orca-edge-extension about:blank
+
+node D:\AI\orca-plate-check\cdp-verify.mjs 9225   # 造仿真页 + 量几何 + 截图
+```
+
+实测（仿真两列布局：`_side` 288px + `_list` 780px）：
+
+```
+panel: x=536 y=45 w=816 h=510        ← 正好包住对话
+host : x=554 w=780                    ← 消息列表
+overlapsSidebar: false                ← 不再压侧栏
+background: rgba(249,251,255,0.91)    ← 略透
+backdrop: none                        ← 无模糊
+文字层: _msg { z-index: 1; position: relative }  ← 文字压在面板之上
+```
+
+> 注意：`file:///*` 那条 content script 匹配**只是验证时临时加过**，已撤掉（扩展仍只作用于
+> `https://chat.deepseek.com/*`）。仿真脚本与 CDP 客户端留在 `D:\AI\orca-plate-check\`，随时可重跑。
+
 ## 本版本调整（0.3.16）
 
 **修「部分文字莫名其妙模糊化」**（用户截图）。

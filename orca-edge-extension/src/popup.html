@@ -2,7 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
-    <title>ORCA LINK</title>
+    <title>ORCA LINK / MAID ATELIER</title>
     <style>
       :root {
         --orca-blue: #4b483f;
@@ -14,7 +14,7 @@
       }
       * { border-radius: 0 !important; box-sizing: border-box; }
       body {
-        width: 268px;
+        width: 276px;
         margin: 0;
         padding: 12px;
         background: var(--orca-surface);
@@ -30,12 +30,25 @@
         letter-spacing: 0.28em;
         color: var(--orca-blue);
       }
-      h1::before {
-        content: '';
-        width: 10px;
-        height: 10px;
-        background: var(--orca-cyan);
+      h1::before { content: ''; width: 10px; height: 10px; background: var(--orca-cyan); }
+      .skins { display: flex; gap: 6px; margin-bottom: 10px; }
+      .skin {
+        flex: 1;
+        padding: 8px 4px;
+        border: 1px solid var(--orca-line);
+        background: transparent;
+        color: var(--orca-ink);
+        font: inherit;
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        cursor: pointer;
       }
+      .skin[data-active] {
+        border-color: var(--orca-cyan);
+        box-shadow: inset 0 0 0 1px var(--orca-cyan);
+        font-weight: 700;
+      }
+      .skin small { display: block; color: var(--orca-muted); font-size: 9px; letter-spacing: 0; }
       label {
         display: flex;
         align-items: center;
@@ -50,7 +63,7 @@
       input[type='checkbox'] { width: 14px; height: 14px; accent-color: var(--orca-cyan); }
       .hint { margin: 10px 0 0; color: var(--orca-muted); font-size: 10px; line-height: 1.6; }
       .row { display: flex; gap: 6px; margin-top: 10px; }
-      button {
+      .row button {
         flex: 1;
         padding: 6px;
         border: 1px solid var(--orca-line);
@@ -59,24 +72,31 @@
         font: inherit;
         cursor: pointer;
       }
-      button:hover { border-color: var(--orca-cyan); }
+      .row button:hover { border-color: var(--orca-cyan); }
+      .section { margin: 12px 0 6px; color: var(--orca-muted); font-size: 10px; letter-spacing: 0.2em; }
     </style>
   </head>
   <body>
-    <h1>ORCA LINK</h1>
+    <h1>SKIN</h1>
+    <div class="skins">
+      <button class="skin" data-skin="orca">ORCA LINK<small>虎鲸链路</small></button>
+      <button class="skin" data-skin="maid">MAID ATELIER<small>深海女仆工坊</small></button>
+    </div>
+
+    <div class="section">显示项</div>
     <label><span>双场景动态背景</span><input type="checkbox" id="scene" /></label>
-    <label><span>状态角色</span><input type="checkbox" id="character" /></label>
-    <label><span>全局直角契约</span><input type="checkbox" id="square" /></label>
+    <label><span>状态角色<span style="color: var(--orca-muted)">（仅虎鲸）</span></span><input type="checkbox" id="character" /></label>
     <label title="正常情况下不需要；站点改版后背景被盖住时打开">
       <span>背景兜底透明化</span><input type="checkbox" id="reveal" />
     </label>
+
     <div class="row">
       <button id="reset-pos">重置位置</button>
       <button id="reload">重载页面</button>
     </div>
     <p class="hint">
-      生效范围：chat.deepseek.com。拖拽左下角角色可移动；点击角色气泡可看状态。<br />
-      美术素材 CC BY-NC-SA 4.0（一创：上善 / 二创：Small-tailqwq），禁止商用。
+      切换皮肤**即时生效**，无需刷新（宫殿背景、双立绘与整站配色一起换）。<br />
+      美术素材 CC BY-NC-SA 4.0，禁止商用：虎鲸链路 一创上善／二创 Small-tailqwq；深海女仆工坊 一创上善／二创 ZipZipPipe／三创 Small-tailqwq。
     </p>
     <script src="popup.js"></script>
   </body>

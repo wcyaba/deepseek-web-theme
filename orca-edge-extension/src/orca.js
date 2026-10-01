@@ -8,7 +8,38 @@
   'use strict';
 
   const MARK = 'data-orca-link';
-  const DEFAULTS = { scene: true, character: true, square: true, reveal: false };
+  const DEFAULTS = { scene: true, character: true, reveal: false, skin: 'orca', collapsed: false };
+
+  /* 两套皮肤的资源与文案（对应 deep-whale 仓库的两个独立皮肤包） */
+  const SKINS = {
+    orca: {
+      label: 'ORCA LINK',
+      sub: '虎鲸链路',
+      swatch: 'linear-gradient(135deg, #4b483f 0 55%, #20c7e8 55% 100%)',
+      scenes: {
+        'light-hero': 'scene-light-hero.webp',
+        'light-active': 'scene-light-active.webp',
+        'dark-hero': 'scene-dark-hero.webp',
+        'dark-active': 'scene-dark-active.webp',
+      },
+      maids: null,
+    },
+    maid: {
+      label: 'MAID ATELIER',
+      sub: '深海女仆工坊',
+      swatch: 'linear-gradient(135deg, #10204d 0 55%, #c5a468 55% 100%)',
+      scenes: {
+        'light-hero': 'maid/maid-atelier-palace-light.webp',
+        'light-active': 'maid/maid-atelier-palace-light.webp',
+        'dark-hero': 'maid/maid-atelier-palace-dark.webp',
+        'dark-active': 'maid/maid-atelier-palace-dark.webp',
+      },
+      maids: {
+        left: 'maid/maid-atelier-maid-left.webp',
+        right: 'maid/maid-atelier-maid-right.webp',
+      },
+    },
+  };
 
   /* ------------------------------------------------ 皮肤原始常量（照搬） */
   const STATUS_LABELS = {
@@ -57,7 +88,13 @@
     widgets: null,
     character: null,
     sprite: null,
-    chipLabel: null,
+    maids: null,
+    decor: null,
+    wordmark: null,
+    skinSwitch: null,
+    collapseBtn: null,
+    skinHint: null,
+    hintTimer: 0,
     status: 'ready',
     frame: 0,
     frameTimer: 0,
@@ -121,7 +158,9 @@
 
   function applySceneMode() {
     const mode = resolveSceneMode();
-    if (mode === state.sceneMode && state.scene.dataset.scene === mode) return;
+    // 状态位始终写到根元素（底饰带等装饰件靠它判断），下面的提前返回只用来省重挂成本
+    document.documentElement.setAttribute('data-orca-scene', mode);
+    if (mode === state.sceneMode && state.scene && state.scene.dataset.scene === mode) return;
     state.sceneMode = mode;
     if (state.scene) state.scene.dataset.scene = mode;
   }
@@ -132,12 +171,10 @@
     scene.setAttribute('aria-hidden', 'true');
     scene.dataset.theme = state.dark ? 'dark' : 'light';
     scene.dataset.scene = state.sceneMode;
-    const layers = [
-      ['light', 'hero', 'scene-light-hero.webp'],
-      ['light', 'active', 'scene-light-active.webp'],
-      ['dark', 'hero', 'scene-dark-hero.webp'],
-      ['dark', 'active', 'scene-dark-active.webp'],
-    ];
+    const layers = [];
+    for (const theme of ['light', 'dark']) {
+      for (const role of ['hero', 'active']) layers.push([theme, role, sceneFileFor(theme, role)]);
+    }
     for (const [theme, role, file] of layers) {
       const layer = document.createElement('div');
       layer.className = 'orca-scene-layer';
@@ -149,6 +186,19 @@
     }
     document.body.prepend(scene);
     state.scene = scene;
+  }
+
+  /** 场景图按当前皮肤取；女仆套的宫殿没有空态/工作态之分，同一张图两用。 */
+  function sceneFileFor(theme, role) {
+    const set = (SKINS[state.settings.skin] || SKINS.orca).scenes;
+    return set[theme + '-' + role] || set[theme + '-hero'];
+  }
+
+  function refreshSceneImages() {
+    if (!state.scene) return;
+    for (const layer of state.scene.children) {
+      layer.style.backgroundImage = `url("${asset(sceneFileFor(layer.dataset.theme, layer.dataset.role))}")`;
+    }
   }
 
   function syncSceneTheme() {
@@ -251,7 +301,6 @@
     }
     if (state.character) state.character.dataset.status = status;
     if (state.widgets) state.widgets.dataset.status = status;
-    if (state.chipLabel) state.chipLabel.textContent = STATUS_LABELS[status];
     renderFrame();
     if (state.frameTimer) clearTimeout(state.frameTimer);
     tickFrame();
@@ -311,13 +360,182 @@
     setStatus('ready', 1800);
   }
 
-  function mountChip(row) {
-    const chip = document.createElement('div');
-    chip.className = 'orca-signal-chip';
-    chip.innerHTML = '<span class="orca-signal-dot"></span><span class="orca-signal-chip-label"></span>';
-    row.append(chip);
-    state.chipLabel = chip.querySelector('.orca-signal-chip-label');
-    if (state.chipLabel) state.chipLabel.textContent = STATUS_LABELS[state.status];
+  /* ------------------------------------------------------- 双女仆立绘层 */
+  function mountMaids() {
+    const skin = SKINS[state.settings.skin] || SKINS.orca;
+    if (!skin.maids) return;
+    const layer = document.createElement('div');
+    layer.id = 'orca-maids';
+    layer.setAttribute('aria-hidden', 'true');
+    for (const side of ['left', 'right']) {
+      const maid = document.createElement('div');
+      maid.className = 'orca-maid';
+      maid.dataset.side = side;
+      maid.style.backgroundImage = `url("${asset(skin.maids[side])}")`;
+      layer.append(maid);
+    }
+    document.body.append(layer);
+    state.maids = layer;
+  }
+
+  /** 女仆套装饰件：顶饰带（含蝴蝶结）、底饰带（含纹章）、侧栏四角金框 */
+  function mountDecor() {
+    if (state.decor) return;
+    const top = document.createElement('div');
+    top.className = 'orca-trim';
+    top.dataset.part = 'top';
+    top.setAttribute('aria-hidden', 'true');
+    const bottom = document.createElement('div');
+    bottom.className = 'orca-trim';
+    bottom.dataset.part = 'bottom';
+    bottom.setAttribute('aria-hidden', 'true');
+    document.body.append(top, bottom);
+    state.decor = { top, bottom };
+  }
+
+  function removeDecor() {
+    if (!state.decor) return;
+    for (const el of Object.values(state.decor)) el.remove();
+    state.decor = null;
+  }
+
+  /** 消息列半宽：优先读站点自己的 --message-list-max-width，读不到就用 840/2 */
+  function syncColumnHalf() {
+    if (!state.maids) return;
+    let half = 420;
+    const raw = getComputedStyle(document.body).getPropertyValue('--message-list-max-width').trim();
+    const num = parseFloat(raw);
+    if (Number.isFinite(num) && num > 320) half = num / 2;
+    document.documentElement.style.setProperty('--orca-column-half', half + 'px');
+  }
+
+  /* --------------------------------------------------------- 皮肤切换 */
+  /** 左下角部件里的皮肤切换面板（与 popup 共用同一份设置，两边自动同步） */
+  function mountSkinSwitch() {
+    const box = document.createElement('div');
+    box.id = 'orca-skin-switch';
+
+    const title = document.createElement('div');
+    title.className = 'orca-skin-title';
+    title.innerHTML = '<span>皮肤 · SKIN</span><span class="orca-skin-title-hint">点此切换</span>';
+
+    // 收起 / 展开：收起后面板只剩这一枚胶囊，状态记在设置里
+    const collapse = document.createElement('button');
+    collapse.type = 'button';
+    collapse.className = 'orca-skin-collapse';
+    collapse.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const next = !(state.settings.collapsed === true);
+      state.settings.collapsed = next;
+      chrome.storage.sync.set({ collapsed: next });
+      paintCollapsed();
+    });
+    state.collapseBtn = collapse;
+
+    box.append(collapse, title);
+
+    for (const key of Object.keys(SKINS)) {
+      const skin = SKINS[key];
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'orca-skin-btn';
+      button.dataset.skin = key;
+      button.title = `${skin.label} · ${skin.sub}`;
+
+      const swatch = document.createElement('span');
+      swatch.className = 'orca-skin-swatch';
+      swatch.style.background = skin.swatch;
+
+      const text = document.createElement('span');
+      text.className = 'orca-skin-text';
+      const name = document.createElement('span');
+      name.className = 'orca-skin-name';
+      name.textContent = skin.label;
+      const sub = document.createElement('span');
+      sub.className = 'orca-skin-sub';
+      sub.textContent = skin.sub;
+      text.append(name, sub);
+
+      const tick = document.createElement('span');
+      tick.className = 'orca-skin-tick';
+      tick.textContent = '✓';
+
+      button.append(swatch, text, tick);
+      button.addEventListener('click', (event) => {
+        event.stopPropagation();
+        state.settings.skin = key;
+        chrome.storage.sync.set({ skin: key });
+        applySkin(key);
+        dismissSkinHint();
+      });
+      box.append(button);
+    }
+
+    // 首次使用的一次性引导气泡，点掉或 12 秒后自动消失
+    const hint = document.createElement('div');
+    hint.className = 'orca-skin-hint';
+    hint.textContent = '↑ 从这里换皮肤 / 背景';
+    box.append(hint);
+    chrome.storage.local.get({ skinHintSeen: false }, ({ skinHintSeen }) => {
+      if (skinHintSeen) {
+        hint.remove();
+        return;
+      }
+      state.hintTimer = window.setTimeout(dismissSkinHint, 12000);
+    });
+    state.skinHint = hint;
+    return box;
+  }
+
+  function dismissSkinHint() {
+    if (state.hintTimer) clearTimeout(state.hintTimer);
+    state.hintTimer = 0;
+    if (state.skinHint) {
+      state.skinHint.remove();
+      state.skinHint = null;
+    }
+    chrome.storage.local.set({ skinHintSeen: true });
+  }
+
+  function paintSkinSwitch() {
+    if (!state.skinSwitch) return;
+    for (const button of state.skinSwitch.children) {
+      if (!button.dataset || !button.dataset.skin) continue;
+      button.toggleAttribute('data-active', button.dataset.skin === state.settings.skin);
+    }
+    paintCollapsed();
+  }
+
+  /** 收起态：藏起标题与两个选项，只留一枚「▸ 皮肤」胶囊可再展开 */
+  function paintCollapsed() {
+    if (!state.skinSwitch) return;
+    const collapsed = state.settings.collapsed === true;
+    state.skinSwitch.toggleAttribute('data-collapsed', collapsed);
+    if (state.collapseBtn) {
+      state.collapseBtn.textContent = collapsed ? '▸ 皮肤' : '– 收起';
+      state.collapseBtn.title = collapsed ? '展开皮肤面板' : '收起皮肤面板';
+    }
+  }
+
+  function applySkin(skin) {
+    const key = SKINS[skin] ? skin : 'orca';
+    state.settings.skin = key;
+    document.documentElement.setAttribute('data-orca-skin', key);
+    refreshSceneImages();
+    if (state.wordmark) state.wordmark.textContent = SKINS[key].label;
+    paintSkinSwitch();
+    if (SKINS[key].maids) {
+      if (!state.maids) mountMaids();
+      syncColumnHalf();
+    } else if (state.maids) {
+      state.maids.remove();
+      state.maids = null;
+    }
+    // 侧栏框两套皮肤都用：虎鲸＝直角方括号 + 竖排字标 + spine；女仆＝金线 + 角饰
+    // 顶/底饰带只属于女仆，由 CSS 的 [data-orca-skin='maid'] 门控
+    mountDecor();
+    const wantCharacter = state.settings.character && !SKINS[key].maids;
+    if (state.character) state.character.style.display = wantCharacter ? '' : 'none';
   }
 
   /* ---------------------------------------------------------- 页面图标 */
@@ -369,14 +587,16 @@
     state.widgets = el;
     const mark = document.createElement('div');
     mark.className = 'orca-wordmark';
-    mark.textContent = 'ORCA LINK';
+    mark.textContent = (SKINS[state.settings.skin] || SKINS.orca).label;
     el.append(mark);
+    state.wordmark = mark;
+    state.skinSwitch = mountSkinSwitch();
+    el.append(state.skinSwitch);
     const row = document.createElement('div');
     row.className = 'orca-row';
     el.append(row);
     if (state.settings.character) {
       mountCharacter(row);
-      mountChip(row);
     }
     chrome.storage.local.get({ pos: null }, ({ pos }) => {
       if (!pos || !pos.left) return;
@@ -430,7 +650,6 @@
   /* ----------------------------------------------------------- 装配/拆卸 */
   function applySettings(settings) {
     state.settings = { ...DEFAULTS, ...settings };
-    document.documentElement.toggleAttribute('data-orca-square', state.settings.square !== false);
     if (!state.settings.scene && state.scene) {
       state.scene.remove();
       state.scene = null;
@@ -439,6 +658,7 @@
       syncSceneTheme();
     }
     if (state.character) state.character.style.display = state.settings.character ? '' : 'none';
+    applySkin(state.settings.skin);
     if (state.settings.reveal) clearAncestors();
     else restoreCleared();
   }
@@ -450,6 +670,7 @@
     state.sceneMode = resolveSceneMode();
     mountScene();
     syncSceneTheme();
+    applySceneMode();
     mountWidgets();
     installFavicon();
     applySettings(state.settings);
@@ -464,16 +685,17 @@
     if (state.contentMo) state.contentMo.disconnect();
     if (state.themeMo) state.themeMo.disconnect();
     if (state.scene) state.scene.remove();
+    if (state.maids) state.maids.remove();
+    removeDecor();
     if (state.widgets) state.widgets.remove();
     restoreFavicon();
     restoreCleared();
     document.documentElement.removeAttribute(MARK);
-    document.documentElement.removeAttribute('data-orca-square');
     document.documentElement.removeAttribute('data-orca-dark');
     state.anchors = new WeakSet();
     Object.assign(state, {
       scene: null, widgets: null, character: null, sprite: null,
-      chipLabel: null, contentMo: null, themeMo: null, observerTimer: 0,
+      maids: null, decor: null, wordmark: null, skinSwitch: null, collapseBtn: null, skinHint: null, hintTimer: 0, contentMo: null, themeMo: null, observerTimer: 0,
     });
   }
 

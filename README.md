@@ -14,6 +14,12 @@
 
 卸载：在同一页面点「移除」。扩展不改站点文件，随删随净。
 ## 效果展示
+<img width="2559" height="1368" alt="60e6dfa57e44d74cfd2cf14034d24017" src="https://github.com/user-attachments/assets/aa32f0f9-9f66-42ee-9a42-006a069345fa" />
+
+<img width="2554" height="1350" alt="ee8dc1ea7320c070d6f41abdac71b68f" src="https://github.com/user-attachments/assets/cf56885f-fb6b-4a1d-a719-f19d51074a2e" />
+
+<img width="2559" height="1361" alt="eef3aee2a87300e0d6f64d0667e0e18b" src="https://github.com/user-attachments/assets/fad8e252-fea7-4811-ad71-2bd6230dbeed" />
+
 <img width="2559" height="1357" alt="a5ce4d5cec99212d77adb616eb5c0ce8" src="https://github.com/user-attachments/assets/d99d7fb8-b6b3-49a4-9f2b-72a9b30aba1e" />
 
 ## 关键发现：两个 DeepSeek 产品共用同一套设计令牌

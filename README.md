@@ -9,7 +9,7 @@
 
 1. 打开 `edge://extensions/`
 2. 打开左下角 **开发人员模式**
-3. 点 **加载解压缩的扩展**，选择本目录：`D:\AI\orca-edge-extension`
+3. 点 **加载解压缩的扩展**，选择本目录：orca-edge-extension
 4. 打开或刷新 https://chat.deepseek.com/ —— 左下角出现 ORCA LINK 部件
 
 卸载：在同一页面点「移除」。扩展不改站点文件，随删随净。

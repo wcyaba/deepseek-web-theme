@@ -782,15 +782,20 @@ html[data-orca-link][data-orca-skin='maid'] #orca-scene[data-theme='dark']::afte
 }
 
 /* ==========================================================================
-   女仆套 · 侧栏作用域令牌（此前漏搬的一层）
-   原作把侧栏的深蓝底与米白字成对写在 [class*=sidebarCol] 上；我上一版只搬了 body 级
-   令牌，导致亮色下侧栏是深蓝底 + body 级的深蓝字（#172347）→ 深底深字，几乎不可读。
-   这里按原作照搬，并把选择器对准站点当前的侧栏容器哈希。
+   女仆套 · 侧栏作用域令牌
+   原作把侧栏的深蓝底与米白字成对写在 [class*=sidebarCol] 上，这里按原作照搬。
+   选择器保持**窄**（就是原作那几个类名）：0.3.10 把它扩成
+   aside / [class*='sidebar' i] / [class*='sider' i] 一大串、0.3.11 又往侧栏上刷
+   实体底并把中间容器透明化，副作用是整块侧栏被压色、宫殿透上来、brand 元素变金。
+   用户要求回到最初那处改动，所以这里恢复原样；站点若再换掉哈希类名，
+   由下面那条「只给侧栏文字上色」的窄规则兜住。
    ========================================================================== */
 html[data-orca-link][data-orca-skin='maid'] .b8812f16,
 html[data-orca-link][data-orca-skin='maid'] .dc04ec1d,
 html[data-orca-link][data-orca-skin='maid'] [class*='sidebarCol'] {
-  /* 底色：确保侧栏是海军蓝，而不是被 --dsw-alias-bg-base: transparent 透出宫殿 */
+  /* 底色：确保侧栏是海军蓝，而不是被 --dsw-alias-bg-base: transparent 透出宫殿。
+     用过 #0b1942（不透明），但那会让整块侧栏失去原作那层纱感，于是回到原作的
+     #0b1942e0 —— 亮色下侧栏是深蓝底，靠上面的米白字保证可读。 */
   --dsw-specific-sidebar-fill: #0b1942e0 !important;
   --dsw-alias-bg-base: #050e2bf5 !important;
   --dsw-alias-bg-layer-1: #102456f0 !important;
@@ -815,6 +820,24 @@ html[data-orca-link][data-orca-skin='maid'] [class*='sidebarCol'] {
   --dsw-alias-button-floating-hover: #fffcf32e !important;
   --dsw-alias-interactive-bg-hover: #fffcf31a !important;
   --dsw-alias-interactive-bg-active: #c5a4684d !important;
+  /* 会话行选中/悬停：深蓝底上用**柔金薄纱**，不用金块压深蓝字
+     （orca 的暗金选中令牌 #d8c08c 是给深色主题的，浅色模式下压在这块海军蓝侧栏上
+     会显得又亮又糊 —— 这里换成同色系的低透明度纱 + 金色强调条） */
+  --dsw-specific-sidebar-nav-item-active: #d8c08c33 !important;
+  --dsw-specific-sidebar-nav-item-hover: #d8c08c1f !important;
+  --dsw-specific-sidebar-nav-item-active-accent: #dbbe7c !important;
+}
+
+/* 侧栏文字兜底（**只上色，不碰背景**）：
+   作用域令牌那一层一旦因站点改版失效（0.3.9 之前就是这样：侧栏是海军蓝底，
+   字却是 body 级的深蓝 #172347 → 几乎读不出来），这条窄规则只给侧栏里的文字
+   指定米白，不去改背景、不透明化容器、不覆盖 brand 色。
+   0.3.10 / 0.3.11 的教训：往侧栏上刷背景色/透明化/改 brand，会让整块侧栏被压色、
+   宫殿透上来、品牌元素变金 —— 副作用远大于收益，所以维持「只改文字」这个最小面。 */
+html[data-orca-link][data-orca-skin='maid'] [class*='sidebarCol'] :is(span, a, button, li, p),
+html[data-orca-link][data-orca-skin='maid'] .b8812f16 :is(span, a, button, li, p),
+html[data-orca-link][data-orca-skin='maid'] .dc04ec1d :is(span, a, button, li, p) {
+  color: var(--dsw-alias-label-primary, #f8f3e8);
 }
 
 /* ==========================================================================
@@ -877,6 +900,44 @@ html[data-orca-link][data-orca-skin='maid'] .orca-wordmark::before {
 }
 @media (prefers-reduced-motion: reduce) {
   .orca-maid { transition: none !important; }
+}
+
+/* ==========================================================================
+   女仆套 · 正文「白玻璃」底（照原皮肤那层 reading surface，但**只铺给消息块**）
+   原包是 `[class*=centerCol]:before{ background: var(--maid-reading-surface);
+   backdrop-filter: blur(16px) saturate(.95); inset: 0 }`，铺满整列。
+   网页版的正文列在亮色下几乎顶到整页 —— 照搬会把侧栏与会话列表一起冲白
+   （用户截图：「你搞的整块都白了，我只要文字一小部分白了就行」）。
+   所以改成：`orca.js` 的 tagReadingSurface() 找出「一条消息」那一层元素并逐个打上
+   `data-orca-reading-block`，CSS 只给这些块铺一小块半透明玻璃。
+   颜色按原皮肤语义给两档（原包 body 级只定义了 --maid-reading-surface，
+   这里是同一支令牌，取它浅/深那套值的语义）。 */
+html[data-orca-link][data-orca-skin='maid'] {
+  /* 略透：能看见一点宫殿，但不影响读字（原包 #f9fbffc7 更透，这里折中到 ~0.9） */
+  --maid-reading-surface: #f9fbffe8;
+}
+html[data-orca-link][data-orca-skin='maid'][data-orca-dark] {
+  --maid-reading-surface: #0a122ac9;
+}
+
+/* 只认 JS 打的标记：**文字块**各铺一小块略透玻璃。
+   粒度刻意停在「段落 / 列表项 / 标题」这一层（整条消息会把复制/下载那行框进去，
+   整列则会把侧栏一起冲白，两版都被用户打回过）。
+
+   ⚠️ 两条硬约束（都是被截图打回来的）：
+   1) **不许写 padding / margin** —— 0.3.14 写的 `padding: 6px 10px; margin: -6px -10px`
+      让块比容器宽 20px，站点容器一裁剪，右边文字被吃掉、左边序号被挤出去。
+      所以尺寸完全交回站点排版。
+   2) **不许写 backdrop-filter** —— 它在块背后做模糊，而块里还会有嵌套的玻璃元素
+      （列表项里再套块），叠加后连文字一起糊掉（用户截图：「存在一些文字莫名其妙
+      模糊化了」）。用一层够实的半透明底就足够达到「略透的玻璃感」。 */
+html[data-orca-link][data-orca-skin='maid'] [data-orca-reading-block] {
+  background-color: var(--maid-reading-surface) !important;
+  border-radius: 8px;
+}
+/* 块里的代码/引用保持自己那层底，别再叠一层玻璃（会发灰） */
+html[data-orca-link][data-orca-skin='maid'] [data-orca-reading-block] :is(pre, code, blockquote) {
+  background-color: transparent !important;
 }
 
 /* ==========================================================================

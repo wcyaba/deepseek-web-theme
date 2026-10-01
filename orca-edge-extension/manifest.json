@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ORCA LINK / MAID ATELIER · DeepSeek 官网皮肤",
-  "version": "0.3.9",
+  "version": "0.3.16",
   "description": "把 DSH 的「虎鲸链路 ORCA LINK」与「深海女仆工坊 MAID ATELIER」两套皮肤搬到 chat.deepseek.com：双场景动态背景、状态角色、双女仆立绘与宫殿场景，左下角面板一键切换。",
   "icons": {
     "16": "icons/icon16.png",

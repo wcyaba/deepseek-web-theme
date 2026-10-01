@@ -70,6 +70,156 @@
 - **运行时图标重绘**：原包把 DSH 图标库的 SVG 逐条改写成「只用横线/竖线/45°折线」的直线图形。官网图标体系不同，**未实现**——直角契约覆盖了形状语言，但这是实打实的缺口。
 - **token 账房 / 轨迹面板 / 设置页接管 / composer 折叠把手**：官网没有对应面板。
 
+## 本版本调整（0.3.16）
+
+**修「部分文字莫名其妙模糊化」**（用户截图）。
+
+模糊来自 `backdrop-filter: blur(16px)`：它是在元素**背后**做模糊，而块里还会有嵌套的玻璃元素
+（列表项里再套段落/块），采样与叠加之后连块内文字一起糊掉 —— 截图里那一行 `Ctrl + A 全选` 就是这样。
+
+改法：文字块规则**去掉 `backdrop-filter`**，只留一层够实的半透明底 + 圆角：
+
+```css
+html[data-orca-link][data-orca-skin='maid'] [data-orca-reading-block] {
+  background-color: var(--maid-reading-surface) !important;   /* 亮 #f9fbffe8 / 暗 #0a122ac9 */
+  border-radius: 8px;
+}
+```
+
+半透明本身就带来了「玻璃感」（宫殿能透出来一点），不需要模糊。`test-tokens.mjs` 增加硬断言：
+文字块规则里不许出现 `backdrop-filter`。
+
+> ⚠️ 文字块规则现在有两条**禁止项**，都是被截图打回来的：
+> ① 不许 `padding` / `margin`（撑宽被裁 → 文字出界/重叠）；② 不许 `backdrop-filter`（嵌套叠加 → 文字模糊）。
+
+## 本版本调整（0.3.15）
+
+**修 0.3.14 的两个排版 bug：文字出界、文字重叠/显示不全**（用户截图）。
+
+根因是我在文字块上写了
+
+```css
+padding: 6px 10px;
+margin: -6px -10px;   /* ← 就是这两条 */
+```
+
+本意是「文字位置不变、背后多出一圈底」，但块级元素（`p` / `li` / 站点的行容器）宽度由容器决定：
+加内边距后盒宽变成 `容器宽 + 20px`，减负外边距又把它往两边各推 10px —— 站点容器一裁剪，
+**右边文字被吃掉、左边序号被挤出去**（截图里 `README.md`→`README.m`、`Settings`→`Setting`、
+`Generate`→`Gener`、行首 5. 被切一半，都是这个）。
+
+改法：**文字块只保留背景 + 圆角 + `backdrop-filter`，尺寸完全交回站点排版**（不写 padding、
+不写 margin）。少了那圈留白，但不会再破坏任何容器；`test-tokens.mjs` 加了硬断言：
+文字块规则里**不许出现 `padding` / `margin`**。
+
+顺带把 JS 的收块条件放宽为「除了 `pre` / `table` 之外都收」，不再用 `display` 过滤
+（防止「出界」靠的是上面那条 CSS 约束，不是 display 白名单）。
+
+> ⚠️ 教训（第二次同类）：给站点既有排版元素加 padding / 负 margin 是危险操作 ——
+> 站点容器大多带 `overflow: hidden`，撑宽即被裁。**要么只上背景，要么另起一层自建元素**。
+
+## 本版本调整（0.3.14）
+
+**白玻璃收细到「文字块」粒度**（用户截图：「你搞的整块都白了，我只要文字一小部分白了就行，而且这白色也是带有一点点透明度的」）。
+
+0.3.13 我把阅读面铺在了**正文列**上（JS 量出列容器打 `data-orca-reading`）—— 但网页版的正文列在亮色下几乎顶到整页，于是侧栏与会话列表一起被冲白。现在：
+
+| | 0.3.13（已撤） | 0.3.14 |
+|---|---|---|
+| 打标对象 | 正文列容器（`[data-orca-reading]`） | **文字块**：markdown 容器的直接子元素 + 列表项（`[data-orca-reading-block]`） |
+| CSS 选择器 | `:is([data-orca-reading], [class*='centerCol'], .ds-scroll-area)` | 只认 `[data-orca-reading-block]`，类名兜底一律去掉 |
+| 观感 | 整页/半页变白，侧栏都被冲淡 | 每段文字背后一小块圆角玻璃（8px 圆角 + `padding: 6px 10px` / `margin: -6px -10px`，**文字位置不变**，只是背后多出一圈） |
+| 透明度 | 亮 `#f9fbffec`（≈93%） | 亮 `#f9fbffe8`（≈91%，略透，能看见一点宫殿）/ 暗 `#0a122ac9` |
+
+`tagReadingSurface()` 的挑法也收紧了：仍先用「所有可见文本块的水平中位数」定位正文中轴、再从中轴下方往上找「孩子都是内容块」的容器，但往后只在**这个容器内部**找文字块，三套选择器（`[class*=markdown i]` / `[class*="message"|"chat" i] [class*="content" i]`）各查一遍取并集，都命中不了才退回「一条消息」这一层。仍然：打错只加背景、不改布局；切回 orca 套会摘掉全部标记。
+
+## 本版本调整（0.3.13）
+
+**女仆套正文补上 DSH 那层「白玻璃」阅读底**（用户截图：正文深蓝衬线字直接压在宫殿图上，读不清；「字背后都像 dsh 里面的一样弄个白底」）。
+
+原皮肤确实有这一层，网页版一直没搬：
+
+```css
+body[data-dsh-maid-atelier][data-maid-panel-page] [class*=centerCol]:before {
+  background: var(--maid-reading-surface);   /* 亮 #f9fbffc7 / 暗 #0a122ac7 */
+  backdrop-filter: blur(16px) saturate(.95);
+  position: absolute; inset: 0;
+}
+```
+
+搬法上**刻意不猜类名**（0.3.10/0.3.11 就是猜类名猜翻的）：`orca.js` 新增 `tagReadingSurface()` —— 取所有可见文本块（`p/li/h1..h4/pre/blockquote/td`，排除本扩展自己的 DOM）的**水平中位数**当正文列中轴，在该中轴下方用 `elementFromPoint` 探一个点，向上找「跨过中轴、且宽度 ≥ 视口 55%」的最外层祖先，给它打上 `data-orca-reading`；CSS 就照着这个标记铺面：
+
+```css
+html[data-orca-link][data-orca-skin='maid'] :is([data-orca-reading], [class*='centerCol'], .ds-scroll-area) {
+  background-color: var(--maid-reading-surface) !important;   /* 亮 #f9fbffec / 暗 #0a122ad6 */
+  backdrop-filter: blur(16px) saturate(.95);
+}
+```
+
+- 触发点：启动时、`applySettings`、内容观察器（500ms 去抖那一路）、窗口 resize；切回 orca 套会摘掉标记。
+- 打错也无害（只加背景色、不改布局）；打不上则维持原样。
+- 用背景色而不是原皮肤的 `:before` 伪元素：站点滚动容器上的伪元素容易被内容盖住、也怕影响滚动。
+
+## 本版本调整（0.3.12）
+
+**按用户要求：侧栏那处改动退回原样**（0.3.10 / 0.3.11 越改越宽，副作用滚雪球）。
+
+| | 0.3.9（现在恢复成这样） | 0.3.10 / 0.3.11（已撤） |
+|---|---|---|
+| 侧栏选择器 | 原样三个：`.b8812f16`、`.dc04ec1d`、`[class*=sidebarCol]` | 扩成 `aside` / `[class*='sidebar' i]` / `[class*='sider' i]` / `[role=complementary]` |
+| 侧栏底 | 原作那层纱 `#0b1942e0`（交给站点用令牌上色） | 我另刷 `background-color: #0b1942 !important` 实体底 + 中间容器 `transparent` |
+| brand 色 | 不碰 | 侧栏内 `--dsw-alias-brand-*` 改成金/米白（→ 品牌标记也变金） |
+| 会话行选中 | orca 那套（深色主题的金） | 女仆套内换柔金薄纱 + 金色强调条 |
+
+**保留**的只有一条**最小兜底**，且只上色、不碰背景：
+
+```css
+html[data-orca-link][data-orca-skin='maid'] [class*='sidebarCol'] :is(span, a, button, li, p),
+html[data-orca-link][data-orca-skin='maid'] .b8812f16 :is(span, a, button, li, p),
+html[data-orca-link][data-orca-skin='maid'] .dc04ec1d :is(span, a, button, li, p) {
+  color: var(--dsw-alias-label-primary, #f8f3e8);
+}
+```
+
+之所以留它：0.3.9 那版侧栏作用域令牌的三个选择器**一个都不匹配**（站点换掉了哈希类名），于是字色回落到 body 级深蓝 `#172347`、压在海军蓝侧栏上读不出来 —— 这就是你最早报的那个问题。现在令牌层恢复原样（窄），但即使它再次失配，这条只改文字的规则也会把侧栏文字拉成米白。
+
+> ⚠️ 教训：这类「看不清」的问题，我连着两版都在**扩大改动面**（先动令牌、再动背景、再动 brand），每次都引入新症状（侧栏被压色、宫殿透上来、品牌元素变金）。正确做法是**把改动限制在症状本身**（字看不清 → 只改字色），其余交回站点与原作。
+
+## 本版本调整（0.3.11）
+
+**修 0.3.10 的回归：女仆套侧栏整块被冲淡（用户截图：「问题更严重了」）**。
+
+0.3.10 修完「会话标题是亮蓝/深蓝看不清」之后，副作用是侧栏变成一层灰蒙蒙的纱 —— 宫殿图整幅透上来了。两个原因，都已修：
+
+1. **侧栏底是半透明的**：令牌 `--dsw-specific-sidebar-fill` 是 `#0b1942e0`（alpha `e0` ≈ 88%），配 `--dsw-alias-bg-base: transparent`，宫殿图直接透上来。现在改成**实体海军蓝 `#0b1942`**，并另加一层兜底：
+   ```css
+   html[data-orca-link][data-orca-skin='maid'] [class*='sidebar' i] > div { background-color: #0b1942 !important; }
+   ```
+   深色主题走 `[data-orca-dark]` 那组（`#050d28`）。选 `[class*=sidebar] > div`（侧栏里那一层容器）而不是压在 `aside` 上，是为了不把顶栏一起染深。
+2. **brand 色覆盖撤掉**：0.3.10 把侧栏作用域里的 `--dsw-alias-brand-primary` 改成金、`--dsw-alias-brand-text` 改成米白，结果侧栏里凡是吃 brand 色的元素（品牌标记、状态点）都变成金色。现在只留 label 系（文字）与 nav-item 系（选中/悬停），brand 色交回站点。
+
+顺带修了 `test-tokens.mjs` 自身一个**假通过**：块提取用 `css.indexOf('\n}', open)` 收尾，撞上了注释里以 `}` 结尾的那一行，把声明块从中间截断，于是前半段令牌（包括 `--dsw-specific-sidebar-fill`）根本没被解析；另一个坑是注释里写了 `--dsw-alias-bg-base: transparent`，正则从注释里的名字一路吃到下一行的 `;`，把中间那条声明整个吞掉 —— 所以提取前**必须先剔除块内注释**。这两处都补了注释说明。
+
+## 本版本调整（0.3.10）
+
+**修「深海女仆工坊 · 日间模式侧栏会话标题看不清」**（用户截图：深蓝字压在海军蓝侧栏上，只有选中行能勉强看出轮廓）。
+
+根因是**侧栏作用域令牌那一层整段失效**了：原作（也是本扩展早先照搬过的写法）把「深蓝底 + 米白字」成对写在 `[class*=sidebarCol]` 上，而我那版选择器写成了
+
+```css
+html[data-orca-link][data-orca-skin='maid'] .b8812f16,
+html[data-orca-link][data-orca-skin='maid'] .dc04ec1d,
+html[data-orca-link][data-orca-skin='maid'] [class*='sidebarCol'] { … }
+```
+
+—— 站点改版换掉了侧栏的哈希类名，三个选择器一个都不匹配，于是这层令牌**一条都没生效**：侧栏仍是海军蓝（`--dsw-specific-sidebar-fill: #0b1942e0` 写在 body 级，还在生效），而文字回落到 body 级的深蓝（`--dsw-alias-label-primary: #172347`）→ 深底深字。
+
+改法：
+
+1. **选择器改宽**，与 JS 里 `ANCHOR_SELECTORS` 那套判据对齐：`[class*=sidebarCol]`、`[class*='sidebar' i]`、`[class*='sider' i]`、`aside`、`[role=complementary]`。哈希类名只在注释里留档，代码不再依赖任何一个。`test-tokens.mjs` 新增断言：作用域必须认这几类锚点、**且不许再出现 `.b8812f16` / `.dc04ec1d`**。
+2. **侧栏内的 brand 色一并改浅**：会话标题用的是 brand 系亮蓝（`--dsw-alias-brand-primary` / `--dsw-alias-brand-text`），压在海军蓝上等于隐形。侧栏作用域内改成米白 `#f8f3e8` + 女仆的金 `#d8c08c`。比逐个元素 `color: …` 稳妥 —— 不会误伤图标、徽标、按钮里的彩色元素。
+3. **选中/悬停行改成柔金薄纱**：orca 那边给的是实体金块（`#d8c08c` 底 + 深色字，为深色主题设计），压在女仆的深蓝侧栏上又亮又糊。女仆套作用域内换成 `#d8c08c33`（选中）／`#d8c08c1f`（悬停）+ 金色强调条 `#dbbe7c`。
+
 ## 本版本调整（0.3.9）
 
 **角色背板再次整体删除（用户截图确认不要）**：上一版（0.3.8）把背板改成「亮/暗跟随主题」，但用户发的截图说明的是另一件事 —— 那块板子**本身就是多余的**：「这板子和背景是两码事，你把这板子删了」。所以这次不是让它跟随主题，而是把它彻底拿掉：`#orca-character::before` 那一整套（底板 / 渐晕 / 细纹 / 粒子）连同它的令牌一起从样式表里消失，角色直接浮在场景上。

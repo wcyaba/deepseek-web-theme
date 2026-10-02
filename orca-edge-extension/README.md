@@ -70,6 +70,240 @@
 - **运行时图标重绘**：原包把 DSH 图标库的 SVG 逐条改写成「只用横线/竖线/45°折线」的直线图形。官网图标体系不同，**未实现**——直角契约覆盖了形状语言，但这是实打实的缺口。
 - **token 账房 / 轨迹面板 / 设置页接管 / composer 折叠把手**：官网没有对应面板。
 
+## 本版本调整（0.3.35）
+
+**修好「女仆日间选中会话行还是金色」—— 又一个「改令牌 ≠ 改到元素」的坑。**
+
+用户贴出选中行的类名：`_546d736 b64fb9ae`，`background-image: none`。
+对照代码里早就写下的一条注释，真相很清楚：
+
+```css
+/* 站点规则是 ._546d736.b64fb9ae { background: var(--dsw-specific-sidebar-nav-item-active-accent) } */
+```
+
+站点把令牌**直接写在这一行元素上**（`.b8812f16 ._546d736.b64fb9ae`，特异性 (0,2,0) + `!important`），
+而我改的令牌挂在**侧栏容器** `.b8812f16` 上（(0,1,0)）→ **被压掉，金渐变照旧**。
+
+暗色那套之所以一直有效，正是因为它**点名了这一行**：
+
+```css
+html[data-orca-link] body[data-ds-dark-theme] ._546d736.b64fb9ae { … }
+```
+
+女仆日间缺的就是这条。补上（并把同款处理一起做全）：
+
+```css
+html[data-orca-link][data-orca-skin='maid'] ._546d736.b64fb9ae {
+  background-color: #35477a !important;   /* 深蓝提亮 */
+  color: #d8c080 !important;              /* 淡金字 */
+}
+html[data-orca-link][data-orca-skin='maid'] ._546d736.b64fb9ae:hover { background-color: #3d5390 !important; }
+/* 右侧「…」按钮用 mask 上色，深蓝底上必须转浅色 */
+html[data-orca-link][data-orca-skin='maid'] ._546d736.b64fb9ae ._254829d { --mask-base-color: 216, 192, 128; }
+```
+
+> 📌 **这条要记住**：站点把设计令牌写在**具体元素**上时，改"祖先容器上的同名令牌"是没用的 ——
+> 必须用**同等或更高特异性**去覆盖那个元素本身。判断方法：DevTools 看哪条规则在设 `background`，
+> 若它写在行元素上，就点名那一行的类名（和用户气泡 `.fbb737a4` 是同一类问题）。
+> 已加 3 条断言钉住这条规则（含 mask 颜色），避免以后又被"令牌兜底"迷惑。
+
+## 本版本调整（0.3.34）
+
+**修一个静默失效的 CSS 坏块 + 说明「选中行改色没生效」的原因。**
+
+1. **坏块**：文件末尾有一个空的 `@media (width <= 1180px) { .orca-trim, }` ——
+   内层规则只有选择器、没有声明块（早期编辑被切坏）。CSS 遇到这种块**不报错、静默跳过**，
+   所以一直没人发现。现在补成完整规则（窄屏隐藏底饰带）。
+   > 教训：CSS 的语法坏块不会让构建失败，只会静默失效 —— `test-css` 的括号平衡测试
+   > 也看不出"规则体为空"，值得单独加一条检查。
+
+2. **「选中会话行改色」没生效**：0.3.33 只改了
+   `--dsw-specific-sidebar-nav-item-active/-hover`，但用户反馈界面**毫无变化**，
+   说明那条行的**金色横渐变（金 → 白）不是来自这两个令牌**，而是站点自己的
+   `background-image: linear-gradient(...)` —— 令牌压不住渐变。
+   正确做法是直接命中该行的**类名**（像用户气泡那样点名 `.fbb737a4`），
+   但需要用户在真实页面上量一次类名，尚未拿到，所以这条**仍未修好**。
+
+## 本版本调整（0.3.33）
+
+**女仆套 · 选中的会话行不再是金色**（用户：金底上的淡金字看不清）。
+
+| 令牌 | 之前 | 现在 |
+|---|---|---|
+| `--dsw-specific-sidebar-nav-item-active` | `#d8c08c3d`（柔金薄纱） | **`#35477a`（深蓝提亮）** |
+| `--dsw-specific-sidebar-nav-item-hover` | `#d8c08c24` | **`#2a3a68`** |
+| `--dsw-specific-sidebar-nav-item-active-accent` | `#dbbe7c` | `#d8c080`（与文字同一档淡金） |
+
+保留金色**强调条**（accent），只把**底色**换成同色系更亮一档的深蓝：
+底仍是深蓝、字仍是淡金，对比反而更强 —— 不再是"选中的那行最难看"。
+
+## 本版本调整（0.3.32）
+
+**女仆套 · 用户气泡：深蓝 + 20% 透明度（= 不透明度 80%）**（用户要求）。
+
+```css
+html[data-orca-link][data-orca-skin='maid'] .fbb737a4 { background-color: #1d294fcc !important; }        /* 日间 */
+html[data-orca-link][data-orca-skin='maid'][data-orca-dark] .fbb737a4 { background-color: #16213fcc !important; } /* 夜间 */
+```
+
+深蓝色不变（`#1d294f` / `#16213f`），alpha `cc` = 不透明度 80%；白字不变。
+
+> ⚠️ **术语坑（记一笔）**：「20% 透明度」= 不透明度 80% = alpha `cc`。
+> 我第一版理解成「20% 不透明」写了 `33`，被用户纠正。
+> 以后一律先确认口径（写清 alpha 值），别再用「透明度百分之几十」这种说法。
+
+## 本版本调整（0.3.31）
+
+**女仆套 · 用户气泡改深蓝底 + 白字**（用户要求）。
+
+定位过程（这次靠用户在真实页面上量的 DOM，没猜）：
+
+```
+0 SPAN  (无)                            文字节点，字色继承 rgb(23,35,71)
+1 DIV   (无)
+2 DIV   ds-collapsible-text
+3 DIV   fbb737a4       bg rgba(232,237,249,.95)  radius 22px  ← ★ 气泡本体
+4 DIV   d29f3d7d ds-message                  ← 整条消息行（透明）
+5 DIV   _9663006
+6 DIV   ds-virtual-list-visible-items
+```
+
+改法（**窄选择器，只认那个类名**，不碰其余消息）：
+
+```css
+html[data-orca-link][data-orca-skin='maid'] .fbb737a4 { background-color: #1d294ff2 !important; }
+html[data-orca-link][data-orca-skin='maid'] .fbb737a4 :is(span,p,div,a,li,code) { color: #fff !important; }
+```
+
+深色主题同样给深蓝（`#16213ff5`），深浅两档都读得清白字。
+
+> 为什么不用令牌：`--dsw-specific-bubble` 在**用户气泡**上落不到（实测底色来自站点自己的规则），
+> 所以这里只能点名类名。哈希类名随站点改版会失效 —— 失效的表现是「气泡回到浅色」，
+> 不会破坏别的地方（这是选它的原因：失败可预期、范围可控）。
+> 已加 3 条断言钉住：底色深蓝、白字只命中气泡内、深色主题也有。
+
+## 本版本调整（0.3.30）
+
+**虎鲸日间：把用户气泡和正文玻璃拉开**（用户给的方案二：气泡换色）。
+
+用户截图里「分不清哪句是我说的」，量出来原因是三块底色几乎同色：
+
+| | 颜色 | 亮度 L | 与玻璃的差 |
+|---|---|---|---|
+| 正文玻璃（虎鲸日间） | `#faf3e8` | 0.956 | — |
+| **页面底色（暖白）** | `#f6f1e7` | 0.946 | **−0.009** ← 玻璃本身几乎就是页底色 |
+| 用户气泡（原皮肤 `--dsw-specific-bubble`） | `#e8e4da` | 0.895 | −0.061 ← 太接近 |
+| **用户气泡（本次）** | `#e6dcc8` | 0.865 | **−0.090** ← 同色系但更实 |
+
+选方案二的理由：方案一要在玻璃上「挖洞」，得精确知道每个气泡的位置 ——
+而玻璃是**一整块 `::before`**，挖洞意味着回到「按位置拼块」那条已经翻车多次的路。
+换一个令牌就够，改动面最小。
+
+`--dsw-specific-bubble` 是**皮肤显式声明过**的令牌，所以按已有规矩在测试里
+**登记为主动偏离**（`INTENTIONAL_TOKEN_DIVERGENCE`，按「块标签|令牌名」区分），
+不是偷偷放宽断言：
+
+```
+PASS  orca 浅色 … 55 项：1 项为主动偏离，其余逐值照搬原皮肤
+PASS  orca 暗色 … 43 项：0 项为主动偏离
+PASS  maid 浅色 … 47 项：0 项为主动偏离
+PASS  maid 暗色 … 42 项：0 项为主动偏离
+```
+
+> 备注：女仆套的气泡（`#e8edf9f2`）与它的冷白玻璃（`#f9fbffe8`）亮度差约 0.086，
+> 是同一类问题。这次**没动它**（用户报的是虎鲸），需要的话同样一个令牌即可调。
+
+## 本版本调整（0.3.29）
+
+**修「打开边栏之后定位不准确」—— 根因是一处 TDZ 抛错，让重量彻底静默失败。**
+
+0.3.28 加了「列宽变了就重量」的判据，但实测发现列宽变化后玻璃**纹丝不动**。
+用日志钩子逐拍观察才看清：`sizeReadingGlass` **只被调用过一次**（开机那次）。
+
+真因：宿主复用分支里写了 `sizeReadingGlass(host, nodes)`，而 `nodes` 是用 `const`
+在**函数后面**声明的 —— 取值触发 **TDZ（暂时性死区）** 抛错，整个 `tagReadingSurface()`
+静默失败。开机时走的是另一条分支（标记新建），所以只有那一次成功。
+`sizeReadingGlass` 现在自己用 `measureInk` 量，根本不需要这个参数 → 去掉。
+
+顺带把复用判据改成**先量完再比签名**（不再有「几何没变就提前返回」的分支）：
+
+```js
+const sig = [left, width, inkMinX, inkMaxX, glassW, glassLeft].join(',');
+if (sig === state.readingSig) return;   // 一致就一个 style 都不写
+```
+
+实测（仿真页，侧栏 288 → 420、列宽 1112 → 980）：
+
+```
+改前：glassLeft 停在 129，beforeX 549 而文字从 520 开始 → 没盖住（glassCoversInk=false）
+改后：glassLeft 重算为 78，beforeX 498 ≤ 520，覆盖到 970  → glassCoversInk=true
+```
+
+> ⚠️ 这轮还有一个把我带偏的坑：**我的测试桩缺 `chrome.storage.onChanged`**，
+> 注入的脚本在**最后一行**抛错 → 我后加的调试钩子没执行、读到 `null`，
+> 让我误以为「重量没发生」。已补上桩，并加断言钉住 TDZ 这个错法：
+> `不许再给 sizeReadingGlass 传外层 nodes`。
+
+## 本版本调整（0.3.28）
+
+**修「毛玻璃范围太大，你没收敛」** —— 用用户贴回的诊断 JSON 一次定位。
+
+诊断数据（用户页面）：
+
+```json
+"glass": { "cls": "ds-virtual-list-items _6f2c522", "x": 20, "w": 662,
+           "beforeW": "662.245px", "beforeLeft": "0px" }
+```
+
+宿主挑对了（正文虚拟列表），但 **`::before` 是 `left:0 / width:662px` —— 又铺满了整列**。
+
+根因：`sizeReadingGlass()` 量的是 `<p>` / `<li>` 这类**块级元素的盒子**，
+而站点的段落盒子**本身就是整列宽**（文字靠内边距/内层容器收窄）
+→ 并集 = 整列 → `left:0 / width=整列`。**量盒子永远量不出文字的宽度。**
+
+改法：用 `TreeWalker` 取容器内所有**文本节点**，再用 `Range.getClientRects()`
+拿它们的实际渲染矩形 —— 这才是「文字墨迹」的范围。
+
+实测（仿真页，正文最长行约 450px）：
+
+```
+改前：--orca-glass-w = 824px（= 整列宽）
+改后：--orca-glass-w = 494px（= 450 + 两侧各 22px 留白）  ← 贴着文字
+```
+
+断言也补上了（含一条反向断言，防止退回量盒子）：
+
+```
+PASS 用 Range 取文本节点的实际渲染矩形（段落盒子是整列宽，量盒子会变成铺满整列）
+PASS 不再用「文本块元素盒子」去算宽度
+```
+
+## 本版本调整（0.3.27）
+
+**虎鲸链路 · 夜间不铺这块正文玻璃**（用户要求）。
+
+两层都挡住：
+- CSS：`…:not([data-orca-skin='maid'])[data-orca-dark] [data-orca-glass-host]:before { content: none; --orca-glass-w: 0px }`
+- JS：`sizeReadingGlass()` 在「非女仆 + 已打 `data-orca-dark`」时**跳过测量并清掉两个宽度变量**。
+
+配套补了一处必须的联动：**主题变化要重新决定铺/不铺**。原来宿主容器还在就直接 `return` 复用，
+导致从夜间切回日间时玻璃不会回来。现在复用前先比「主题代次」`state.readingHostDark`，
+并在主题监听（`themeMo`）里也调一次 `tagReadingSurface()`。
+
+### 实测（无头 Edge + CDP 注入扩展源码，皮肤 = orca）
+
+```
+日间：::before content=""      width 824px   background rgba(250,243,232,.91)
+夜间：::before content=none    width 0px     （暗色标记在 html 上）
+切回日间：content=""           width 824px   （恢复）
+```
+
+> ⚠️ 排查过程里我先怀疑「扩展把 `data-orca-dark` 留在 html 上没摘掉」，但打印实况发现
+> `detectDark()` 是因为我**仿真页没写 `body.light`** 而落到「采样底色亮度」兜底、被判成深色 ——
+> **是仿真页不像真实机制，不是扩展的 bug**。把仿真页对齐站点机制
+> （深色 = `body.dark` + `body[data-ds-dark-theme]`，浅色 = `body.light`）后就全对了。
+> 记这一笔，是为了下次别再把仿真页的偏差当成产品缺陷。
+
 ## 本版本调整（0.3.26）
 
 **修「侧栏没变深蓝，只有字变淡金了」——根因是 CSS 特异性，不是令牌名**（用户一眼看出「有别的代码在覆盖」）。

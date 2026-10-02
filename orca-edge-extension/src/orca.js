@@ -127,6 +127,9 @@
     href: location.href,
     drag: null,
     readingHost: null,
+    readingHostDark: null, // 上次铺/不铺玻璃时的主题位（虎鲸夜间不铺）
+    readingSig: '', // 上次写玻璃变量时的几何签名
+    // rAF 节流句柄
   };
 
   /* ------------------------------------------------------- 主题（亮/暗） */
@@ -253,6 +256,8 @@
       const host = document.querySelector('[data-orca-glass-host]');
       if (host) host.removeAttribute('data-orca-glass-host');
       state.readingHost = null;
+      state.readingHostDark = null;
+      state.readingSig = '';
     };
     if (!state.settings.skin) {
       clear();
@@ -265,9 +270,20 @@
       }
       return n;
     };
-    /* 已经标记过、且节点还在文档里 → 直接复用。CSS 是 inset:0，尺寸由容器自己决定，
-       不需要因为滚动/内容变化而重算任何东西 —— 这正是 DSH 那套的好处。 */
-    if (state.readingHost && state.readingHost.isConnected) return;
+    /* 复用判断：**先量、再比对**，不做「几何没变就提前返回」的分支。
+       开合侧栏/拉窗口会让正文列改宽改位，只比主题或只比宽度都会漏
+       （用户报「打开边栏之后定位不准确」），所以把宿主几何与墨迹左缘一起做成签名比对：
+       签名一致就什么都不写（滚动时每帧调也不会抖），不一致才写变量。 */
+    const isDark = document.documentElement.hasAttribute('data-orca-dark');
+    const host = state.readingHost;
+    if (host && host.isConnected) {
+      state.readingHostDark = isDark;
+      /* ⚠️ 这里**不能**传 `nodes`：它是下面用 `const` 声明的，在此处取值会触发 TDZ 抛错，
+         整个函数静默失败 → 玻璃永远停在旧位置（「打开边栏之后定位不准确」的真因）。
+         sizeReadingGlass 现在自己用 measureInk 量，不需要外层这个列表。 */
+      sizeReadingGlass(host);
+      return;
+    }
 
     // 1) 正文中轴：所有可见文本块的中位数（排除本扩展自己的 DOM）
     const nodes = [];
@@ -340,31 +356,67 @@
     clear();
     list.setAttribute('data-orca-glass-host', '');
     state.readingHost = list;
-    sizeReadingGlass(list, nodes);
+    state.readingHostDark = isDark;
+    state.readingSig = '';
+    sizeReadingGlass(list);
   }
 
-  /** 量出正文的实际宽度：取容器内所有文本块的并集范围，再加一点内边距。
-   *  只写 `--orca-glass-left` / `--orca-glass-w` 两个数（相对容器的偏移与宽度），
-   *  颜色/圆角/高度全部由 CSS 决定 —— 这样玻璃贴着正文，而不是铺满整列。 */
-  function sizeReadingGlass(list, nodes) {
-    const lr = list.getBoundingClientRect();
+  /** 量「文字墨迹」的横向范围：用 Range 取容器内所有**文本节点**的实际渲染矩形。
+   *  ⚠️ 不能量 `<p>` / `<li>` 的盒子：站点的段落盒子本身就是**整列宽**
+   *  （文字靠内边距/内层容器收窄），量盒子 → 并集 = 整列 → 玻璃铺满整列
+   *  （用户报「毛玻璃范围太大，你没收敛」就是这个）。 */
+  function measureInk(list) {
     let minX = Infinity;
     let maxX = -Infinity;
-    for (const el of list.querySelectorAll('p, li, h1, h2, h3, h4, pre, blockquote, td')) {
-      const r = el.getBoundingClientRect();
-      if (r.width <= 0 || r.height <= 0) continue;
-      if ((el.textContent || '').trim().length < 2) continue;
-      minX = Math.min(minX, r.left);
-      maxX = Math.max(maxX, r.right);
+    const walker = document.createTreeWalker(list, NodeFilter.SHOW_TEXT, {
+      acceptNode(t) {
+        if (!t.nodeValue || !t.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+        const p = t.parentElement;
+        if (!p || p.closest('#orca-widgets, .orca-row, #orca-maids')) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    });
+    const range = document.createRange();
+    for (let t = walker.nextNode(); t; t = walker.nextNode()) {
+      range.selectNodeContents(t);
+      for (const r of range.getClientRects()) {
+        if (r.width <= 0 || r.height <= 0) continue;
+        minX = Math.min(minX, r.left);
+        maxX = Math.max(maxX, r.right);
+      }
     }
+    return { minX, maxX };
+  }
+
+  /** 按量出的墨迹范围写 `--orca-glass-left` / `--orca-glass-w` 两个数，
+   *  颜色/圆角/高度全部由 CSS 决定 —— 这样玻璃贴着正文，而不是铺满整列。
+   *  **虎鲸链路夜间不铺**（用户要求）：那一档直接清掉两个变量并跳过测量。
+   *  （CSS 里还有一条 `content: none` 兜底，两层都挡住。） */
+  function sizeReadingGlass(list) {
+    const skip = state.settings.skin !== 'maid' && document.documentElement.hasAttribute('data-orca-dark');
+    if (skip) {
+      list.style.removeProperty('--orca-glass-left');
+      list.style.removeProperty('--orca-glass-w');
+      state.readingSig = 'off';
+      return;
+    }
+    const lr = list.getBoundingClientRect();
+    const { minX, maxX } = measureInk(list);
     if (!Number.isFinite(minX) || maxX <= minX) {
       list.style.removeProperty('--orca-glass-left');
       list.style.removeProperty('--orca-glass-w');
+      state.readingSig = 'empty';
       return;
     }
     const PAD = 22; // 正文两侧留白（玻璃比文字略宽一点）
-    const width = Math.min(maxX - minX + PAD * 2, lr.width);
-    const left = Math.max(0, Math.min((lr.width - width) / 2, minX - lr.left - PAD));
+    const width = Math.max(120, Math.min(maxX - minX + PAD * 2, lr.width));
+    const left = Math.max(0, Math.min(lr.width - width, minX - lr.left - PAD));
+    /* 签名比对：宿主位置/宽度 + 墨迹左右缘。**先算完再决定写不写**，
+       所以不存在「该重量时提前返回」的问题；签名一致时一次 style 写入都没有，
+       滚动时每帧调也不会抖。 */
+    const sig = [Math.round(lr.left), Math.round(lr.width), Math.round(minX), Math.round(maxX), Math.round(width), Math.round(left)].join(',');
+    if (sig === state.readingSig) return;
+    state.readingSig = sig;
     list.style.setProperty('--orca-glass-w', Math.round(width) + 'px');
     list.style.setProperty('--orca-glass-left', Math.round(left) + 'px');
   }
@@ -1237,7 +1289,7 @@
     Object.assign(state, {
       scene: null, widgets: null, character: null, sprite: null,
       maids: null, decor: null, wordmark: null, skinSwitch: null, collapseBtn: null, statusStarted: false, newChatBtn: null, newChatSvg: null, skinHint: null, hintTimer: 0, contentMo: null, themeMo: null, observerTimer: 0, generating: false, generatingAt: 0, workingSince: 0, charRow: null, ncStageDark: null,
-      readingHost: null,
+      readingHost: null, readingHostDark: null, readingSig: '',
     });
   }
 
@@ -1265,6 +1317,7 @@
     state.themeMo = new MutationObserver(() => {
       applyTheme();
       syncSceneTheme();
+      tagReadingSurface(); // 虎鲸夜间不铺玻璃：主题一变就要重新决定铺/不铺
     });
     const filter = { attributes: true, attributeFilter: ['class', 'data-theme', 'data-color-mode', 'data-ds-dark-theme'] };
     state.themeMo.observe(document.documentElement, filter);
@@ -1302,7 +1355,7 @@
     window.addEventListener('resize', () => {
       syncCharSize();
       paintNewChatArt();
-      tagReadingSurface();
+      tagReadingSurface(); // 侧栏开合/拉窗口都会触发 resize
     });
   }
 
@@ -1322,4 +1375,5 @@
     for (const [key, { newValue }] of Object.entries(changes)) next[key] = newValue;
     applySettings(next);
   });
+
 })();

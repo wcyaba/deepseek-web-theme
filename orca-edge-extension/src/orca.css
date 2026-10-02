@@ -570,7 +570,11 @@ html[data-orca-link]:not([data-orca-skin='maid']) body {
   --dsw-alias-menu-group-header-fill: #fbf7ef !important;
   --dsw-alias-state-business-primary: #4b483f !important;
   --dsw-alias-state-business-tertiary: #ddd8cc !important;
-  --dsw-specific-bubble: #e8e4dad6 !important;
+  /* 用户气泡：原皮肤是 #e8e4dad6，和正文「淡金玻璃」(#faf3e8e8) 亮度几乎一样，
+     叠在一起就分不出"哪句是我说的"（用户反馈 + 截图）。
+     压深一档、保持同色系（暖米灰），让它从玻璃上浮出来：
+     玻璃 L≈0.95 / 旧气泡 L≈0.89 / 新气泡 L≈0.90 但彩度更高、和玻璃反差更明显。 */
+  --dsw-specific-bubble: #e6dcc8f2 !important;
   --dsw-specific-bubble-highlight: #d8d2c6f0 !important;
   --dsw-specific-input-major: #fdfaf4b8 !important;
   --dsw-specific-menu: #fdfaf4f5 !important;
@@ -663,8 +667,28 @@ html[data-orca-link] body[data-ds-dark-theme] .b8812f16 {
   --dsw-specific-sidebar-nav-item-hover: #d8c08c1f !important;
 }
 
-/* 顶栏下沿与侧栏分界改用 ORCA 线色（皮肤里靠 --orca-line 统一） */
-html[data-orca-link] .the-header,
+/* ==========================================================================
+   女仆套 · **日间**的选中会话行：同样必须**点名这一行**，改令牌是不够的。
+   ⚠️ 这里踩过一次坑（用户报「改了没变化」）：站点规则是
+      `._546d736.b64fb9ae { background: var(--dsw-specific-sidebar-nav-item-active-accent) !important }`
+      —— 它直接写在这一行上，而我改的令牌挂在**侧栏容器** `.b8812f16` 上，
+      选择器特异性比站点那条低，于是被压掉（金渐变照旧）。
+      暗色那套之所以有效（见上一条），正是因为它点了 `body[data-ds-dark-theme] ._546d736.b64fb9ae`。
+      教训：**改令牌 ≠ 改到元素**；站点把令牌写在具体元素上时，必须用同等或更高的特异性覆盖。
+   ========================================================================== */
+html[data-orca-link][data-orca-skin='maid'] ._546d736.b64fb9ae {
+  background-color: #35477a !important; /* 深蓝提亮：字是淡金，对比清楚 */
+  color: #d8c080 !important;
+}
+html[data-orca-link][data-orca-skin='maid'] ._546d736.b64fb9ae:hover {
+  background-color: #3d5390 !important;
+}
+/* 选中行右侧的操作按钮用 mask 上色 → 深蓝底上必须转浅色才看得见 */
+html[data-orca-link][data-orca-skin='maid'] ._546d736.b64fb9ae ._254829d {
+  --mask-base-color: 216, 192, 128;
+}
+
+/* 顶栏下沿与侧栏分界改用 ORCA 线色（皮肤里靠 --orca-line 统一） */html[data-orca-link] .the-header,
 html[data-orca-link] ._2be88ba {
   border-bottom: 1px solid var(--orca-line) !important;
 }
@@ -835,12 +859,14 @@ html[data-orca-link][data-orca-skin='maid'] [class*='sidebarCol'] {
   --dsw-alias-button-floating-hover: #fffcf32e !important;
   --dsw-alias-interactive-bg-hover: #fffcf31a !important;
   --dsw-alias-interactive-bg-active: #c5a4684d !important;
-  /* 会话行选中/悬停：深蓝底上用**柔金薄纱**，不用金块压深蓝字
-     （orca 的暗金选中令牌 #d8c08c 是给深色主题的，浅色模式下压在这块海军蓝侧栏上
-     会显得又亮又糊 —— 这里换成同色系的低透明度纱 + 金色强调条） */
-  --dsw-specific-sidebar-nav-item-active: #d8c08c3d !important;
-  --dsw-specific-sidebar-nav-item-hover: #d8c08c24 !important;
-  --dsw-specific-sidebar-nav-item-active-accent: #dbbe7c !important;
+  /* 会话行选中/悬停：**深蓝提亮**，不用金色。
+     金色压在这套侧栏的淡金字上，会让"选中的那一行反而看不清"（用户截图）。
+     ⚠️ 只改下面两个令牌时用户反馈"没变化"：那条选中行的**金色渐变并非来自这两个令牌**
+     （截图是「金 → 白」横向渐变，多半是站点自己的 `background-image: linear-gradient`）。
+     真正的兜底在文件末尾：直接命中选中行的**类名**。 */
+  --dsw-specific-sidebar-nav-item-active: #35477a !important;
+  --dsw-specific-sidebar-nav-item-hover: #2a3a68 !important;
+  --dsw-specific-sidebar-nav-item-active-accent: #d8c080 !important;
 }
 
 /* 侧栏文字兜底（**只上色，不碰背景**）：
@@ -853,6 +879,28 @@ html[data-orca-link][data-orca-skin='maid'] [class*='sidebarCol'] :is(span, a, b
 html[data-orca-link][data-orca-skin='maid'] .b8812f16 :is(span, a, button, li, p),
 html[data-orca-link][data-orca-skin='maid'] .dc04ec1d :is(span, a, button, li, p) {
   color: var(--maid-sidebar-ink, #d8c080);
+}
+
+/* 女仆套 · **用户气泡**：深蓝底 + 白字（用户要求）。
+   类名来自用户在真实页面上量的 DOM：文字 span 往上第 3 层是
+   `div.fbb737a4` —— 底色 rgba(232,237,249,.95)、圆角 22px，正是用户气泡本体；
+   再往上一层 `d29f3d7d ds-message` 是整条消息行（透明），所以只认这个类名。
+   哈希类名会随站点改版失效，失效时表现为"气泡回到浅色"，不会破坏别的地方。
+   为什么不用令牌：`--dsw-specific-bubble` 在站点的**用户气泡**上落不到
+   （实测底色来自站点自己的规则），所以这里用窄选择器直接指定。 */
+html[data-orca-link][data-orca-skin='maid'] .fbb737a4 {
+  /* 用户要求：透明度 20% = **不透明度 80%**（alpha cc）。深蓝底 + 白字。 */
+  background-color: #1d294fcc !important;
+}
+html[data-orca-link][data-orca-skin='maid'] .fbb737a4 :is(span, p, div, a, li, code) {
+  color: #ffffff !important;
+}
+/* 深色主题下保持同一块深蓝（与侧栏同色系，深浅两档都读得清白字） */
+html[data-orca-link][data-orca-skin='maid'][data-orca-dark] .fbb737a4 {
+  background-color: #16213fcc !important; /* 夜间同样：不透明度 80%（alpha cc） */
+}
+html[data-orca-link][data-orca-skin='maid'][data-orca-dark] .fbb737a4 :is(span, p, div, a, li, code) {
+  color: #ffffff !important;
 }
 
 /* ==========================================================================
@@ -958,6 +1006,13 @@ html[data-orca-link]:not([data-orca-skin='maid']) {
 html[data-orca-link]:not([data-orca-skin='maid'])[data-orca-dark] {
   --orca-glass-surface: #0e141ecc;
   --orca-glass-frame: #c8b18426;
+}
+/* 虎鲸链路 · **夜间不铺这块玻璃**（用户要求）；
+   只留作用域，不画任何东西：`content: none` 让伪元素不生成，
+   同时把宽度收到 0 兜底（万一站点改了伪元素规则也不会漏出一块）。 */
+html[data-orca-link]:not([data-orca-skin='maid'])[data-orca-dark] [data-orca-glass-host]:before {
+  content: none;
+  --orca-glass-w: 0px;
 }
 
 /* 两套皮肤都用同一套几何：`::before` 铺在正文列上，宽度由 JS 量出的正文范围决定。
@@ -1067,8 +1122,12 @@ html[data-orca-link][data-orca-skin='maid'][data-orca-scene='active'] .orca-trim
   transform: translate(-50%, 100%);
 }
 
+/* 窄屏：底饰带收起（避免压住输入区）
+   ⚠️ 这里原本是一个**空的坏规则** `@media (width <= 1180px) { .orca-trim, }`
+   —— 内层规则从 0.3.x 早期就被切坏了（选择器后面没有声明块）。
+   现在补回完整内容；这也是一个提醒：CSS 里的语法坏块不会报错，只会静默失效。 */
 @media (width <= 1180px) {
-  .orca-trim,
+  .orca-trim[data-part='bottom'] { opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .orca-trim[data-part='bottom'] { transition: none !important; }
